@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import threading
+
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -10,10 +14,118 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPushButton,
+    QProgressDialog,
     QVBoxLayout,
     QWidget,
 )
+
+from app.core.errors import MailMergeError
+from app.core.excel_loader import load_matching_sheet
+from app.core.logging_setup import AuditWriter, configure_logging, create_run_directory
+from app.core.models import RowData, SheetInfo, TemplateInfo
+from app.core.run_controller import ProgressEvent, RunConfig, RunController, RunSummary
+from app.core.template_analyzer import analyze_template
+from app.core.validation import is_valid_email
+
+
+class _TemplateAnalysisSignals(QObject):
+    """Signals for template analysis tasks."""
+
+    finished = Signal(object)
+    error = Signal(str)
+
+
+class _ExcelLoadSignals(QObject):
+    """Signals for Excel loading tasks."""
+
+    finished = Signal(object, object)
+    error = Signal(str)
+
+
+class _RunSignals(QObject):
+    """Signals for run execution tasks."""
+
+    progress = Signal(object)
+    finished = Signal(object)
+    error = Signal(str)
+
+
+class _TemplateAnalysisWorker(QRunnable):
+    """Analyze templates in a background worker."""
+
+    def __init__(self, template_path: Path) -> None:
+        super().__init__()
+        self.signals = _TemplateAnalysisSignals()
+        self._template_path = Path(template_path)
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            template_info = analyze_template(self._template_path)
+        except MailMergeError as exc:
+            self.signals.error.emit(str(exc))
+            return
+        except Exception:
+            self.signals.error.emit("Template analysis failed.")
+            return
+        self.signals.finished.emit(template_info)
+
+
+class _ExcelLoadWorker(QRunnable):
+    """Load spreadsheet metadata in a background worker."""
+
+    def __init__(self, excel_path: Path, template_info: TemplateInfo) -> None:
+        super().__init__()
+        self.signals = _ExcelLoadSignals()
+        self._excel_path = Path(excel_path)
+        self._template_info = template_info
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            sheet_info, rows = load_matching_sheet(self._excel_path, self._template_info)
+        except MailMergeError as exc:
+            self.signals.error.emit(str(exc))
+            return
+        except Exception:
+            self.signals.error.emit("Failed to load spreadsheet.")
+            return
+        self.signals.finished.emit(sheet_info, rows)
+
+
+class _RunWorker(QRunnable):
+    """Execute the run controller workflow on a background thread."""
+
+    def __init__(self, config: RunConfig, cancel_token: threading.Event) -> None:
+        super().__init__()
+        self.signals = _RunSignals()
+        self._config = config
+        self._cancel_token = cancel_token
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            run_dir = create_run_directory(None)
+            logger = configure_logging(run_dir)
+            audit_writer = AuditWriter(run_dir)
+            controller = RunController(logger=logger, audit_writer=audit_writer)
+            summary = controller.run(
+                self._config,
+                on_progress=self._emit_progress,
+                cancel_token=self._cancel_token,
+            )
+        except MailMergeError as exc:
+            self.signals.error.emit(str(exc))
+            return
+        except Exception:
+            self.signals.error.emit("Mail merge run failed.")
+            return
+        self.signals.finished.emit(summary)
+
+    def _emit_progress(self, event: ProgressEvent) -> None:
+        self.signals.progress.emit(event)
 
 
 class MainWindow(QMainWindow):
@@ -22,6 +134,16 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Mail-merge emailer")
+
+        self._thread_pool = QThreadPool.globalInstance()
+        self._template_request_id = 0
+        self._excel_request_id = 0
+        self._template_info: TemplateInfo | None = None
+        self._sheet_info: SheetInfo | None = None
+        self._loaded_rows: list[RowData] = []
+        self._processing = False
+        self._cancel_event: threading.Event | None = None
+        self._progress_dialog: QProgressDialog | None = None
 
         self._template_path = QLineEdit()
         self._template_path.setPlaceholderText("Template (.docx)")
@@ -35,7 +157,6 @@ class MainWindow(QMainWindow):
 
         self._to_column = QComboBox()
         self._to_column.setEditable(True)
-        self._to_column.addItems(["", "Email", "To", "Recipient"])
 
         self._subject_template = QLineEdit()
         self._subject_template.setPlaceholderText("Subject template")
@@ -52,6 +173,8 @@ class MainWindow(QMainWindow):
         self._process_button.clicked.connect(self._on_process_clicked)
 
         self._build_layout()
+        self._initialize_state()
+        self._wire_signals()
 
     def _build_layout(self) -> None:
         central_widget = QWidget()
@@ -95,6 +218,22 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         self.statusBar().showMessage("Ready")
 
+    def _initialize_state(self) -> None:
+        self._clear_to_column()
+        self._set_excel_controls_enabled(False)
+        self._set_to_column_enabled(False)
+        self._process_button.setEnabled(False)
+        self._update_process_state()
+
+    def _wire_signals(self) -> None:
+        self._template_path.textChanged.connect(self._on_template_path_changed)
+        self._excel_path.textChanged.connect(self._on_excel_path_changed)
+        self._to_column.currentTextChanged.connect(self._update_process_state)
+        self._from_email.textChanged.connect(self._update_process_state)
+        self._tenant_id.textChanged.connect(self._update_process_state)
+        self._client_id.textChanged.connect(self._update_process_state)
+        self._client_secret.textChanged.connect(self._update_process_state)
+
     def _picker_row(self, line_edit: QLineEdit, button: QPushButton) -> QWidget:
         row = QWidget()
         layout = QHBoxLayout(row)
@@ -102,6 +241,38 @@ class MainWindow(QMainWindow):
         layout.addWidget(line_edit)
         layout.addWidget(button)
         return row
+
+    def _set_excel_controls_enabled(self, enabled: bool) -> None:
+        self._excel_path.setEnabled(enabled)
+        self._excel_button.setEnabled(enabled)
+
+    def _set_to_column_enabled(self, enabled: bool) -> None:
+        self._to_column.setEnabled(enabled)
+
+    def _apply_dependent_enable_state(self) -> None:
+        self._set_excel_controls_enabled(self._template_info is not None)
+        self._set_to_column_enabled(self._sheet_info is not None)
+
+    def _clear_excel_path(self) -> None:
+        self._excel_path.blockSignals(True)
+        self._excel_path.setText("")
+        self._excel_path.blockSignals(False)
+
+    def _clear_to_column(self) -> None:
+        self._to_column.blockSignals(True)
+        self._to_column.clear()
+        self._to_column.addItem("")
+        self._to_column.setCurrentIndex(0)
+        self._to_column.blockSignals(False)
+
+    def _reset_excel_state(self) -> None:
+        self._sheet_info = None
+        self._loaded_rows = []
+        self._excel_request_id += 1
+        self._clear_excel_path()
+        self._clear_to_column()
+        self._set_to_column_enabled(False)
+        self._set_excel_controls_enabled(False)
 
     def _pick_template(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -123,8 +294,307 @@ class MainWindow(QMainWindow):
         if path:
             self._excel_path.setText(path)
 
+    def _on_template_path_changed(self, value: str) -> None:
+        self._template_request_id += 1
+        request_id = self._template_request_id
+        self._template_info = None
+        self._reset_excel_state()
+
+        template_value = value.strip()
+        if not template_value:
+            self.statusBar().showMessage("Select a template to continue.")
+            self._update_process_state()
+            return
+
+        template_path = Path(template_value)
+        if not template_path.exists():
+            self.statusBar().showMessage("Template file not found.", 5000)
+            self._update_process_state()
+            return
+
+        self.statusBar().showMessage("Analyzing template...")
+        worker = _TemplateAnalysisWorker(template_path)
+        worker.signals.finished.connect(
+            lambda info, rid=request_id: self._handle_template_success(rid, info)
+        )
+        worker.signals.error.connect(
+            lambda message, rid=request_id: self._handle_template_error(rid, message)
+        )
+        self._thread_pool.start(worker)
+
+    def _handle_template_success(self, request_id: int, info: TemplateInfo) -> None:
+        if request_id != self._template_request_id:
+            return
+        self._template_info = info
+        self._set_excel_controls_enabled(True)
+        self.statusBar().showMessage(
+            f"Template '{info.template_name}' ready.",
+            5000,
+        )
+        self._update_process_state()
+
+    def _handle_template_error(self, request_id: int, message: str) -> None:
+        if request_id != self._template_request_id:
+            return
+        self._template_info = None
+        self._reset_excel_state()
+        self.statusBar().showMessage("Template analysis failed.", 8000)
+        self._show_error_dialog("Template error", message)
+        self._update_process_state()
+
+    def _on_excel_path_changed(self, value: str) -> None:
+        self._excel_request_id += 1
+        request_id = self._excel_request_id
+        self._sheet_info = None
+        self._loaded_rows = []
+        self._clear_to_column()
+        self._set_to_column_enabled(False)
+
+        if self._template_info is None:
+            self._update_process_state()
+            return
+
+        excel_value = value.strip()
+        if not excel_value:
+            self.statusBar().showMessage("Select a spreadsheet to continue.")
+            self._update_process_state()
+            return
+
+        excel_path = Path(excel_value)
+        if not excel_path.exists():
+            self.statusBar().showMessage("Spreadsheet file not found.", 5000)
+            self._update_process_state()
+            return
+
+        self.statusBar().showMessage("Loading spreadsheet...")
+        worker = _ExcelLoadWorker(excel_path, self._template_info)
+        worker.signals.finished.connect(
+            lambda sheet_info, rows, rid=request_id: self._handle_excel_success(
+                rid,
+                sheet_info,
+                rows,
+            )
+        )
+        worker.signals.error.connect(
+            lambda message, rid=request_id: self._handle_excel_error(rid, message)
+        )
+        self._thread_pool.start(worker)
+
+    def _handle_excel_success(
+        self,
+        request_id: int,
+        sheet_info: SheetInfo,
+        rows: list[RowData],
+    ) -> None:
+        if request_id != self._excel_request_id:
+            return
+        self._sheet_info = sheet_info
+        self._loaded_rows = rows
+        self._populate_to_column(sheet_info)
+        self._set_to_column_enabled(True)
+        self.statusBar().showMessage(
+            f"Loaded '{sheet_info.name}' with {len(rows)} rows.",
+            5000,
+        )
+        self._update_process_state()
+
+    def _handle_excel_error(self, request_id: int, message: str) -> None:
+        if request_id != self._excel_request_id:
+            return
+        self._sheet_info = None
+        self._loaded_rows = []
+        self._clear_to_column()
+        self._set_to_column_enabled(False)
+        self.statusBar().showMessage("Spreadsheet load failed.", 8000)
+        self._show_error_dialog("Spreadsheet error", message)
+        self._update_process_state()
+
+    def _populate_to_column(self, sheet_info: SheetInfo) -> None:
+        self._to_column.blockSignals(True)
+        self._to_column.clear()
+        self._to_column.addItem("")
+        for column in sheet_info.columns:
+            self._to_column.addItem(column.header, column.key)
+        self._to_column.setCurrentIndex(0)
+        self._to_column.blockSignals(False)
+
+    def _selected_to_column_key(self) -> str:
+        data = self._to_column.currentData()
+        if data is not None:
+            text = str(data).strip()
+            if text:
+                return text
+        return self._to_column.currentText().strip()
+
+    def _credentials_ready(self) -> bool:
+        return bool(
+            self._tenant_id.text().strip()
+            and self._client_id.text().strip()
+            and self._client_secret.text().strip()
+        )
+
+    def _from_email_valid(self) -> bool:
+        return is_valid_email(self._from_email.text())
+
+    def _update_email_style(self) -> None:
+        value = self._from_email.text().strip()
+        if not value:
+            self._from_email.setStyleSheet("")
+            return
+        if is_valid_email(value):
+            self._from_email.setStyleSheet("")
+            return
+        self._from_email.setStyleSheet("border: 1px solid #d9534f;")
+
+    def _update_process_state(self) -> None:
+        self._update_email_style()
+        if self._processing:
+            self._process_button.setEnabled(False)
+            return
+        ready = (
+            self._template_info is not None
+            and self._sheet_info is not None
+            and bool(self._selected_to_column_key())
+            and self._from_email_valid()
+            and self._credentials_ready()
+        )
+        self._process_button.setEnabled(ready)
+
+    def _set_processing(self, processing: bool) -> None:
+        self._processing = processing
+        self._template_path.setEnabled(not processing)
+        self._template_button.setEnabled(not processing)
+        self._subject_template.setEnabled(not processing)
+        self._tenant_id.setEnabled(not processing)
+        self._client_id.setEnabled(not processing)
+        self._client_secret.setEnabled(not processing)
+        self._from_email.setEnabled(not processing)
+        self._preview_button.setEnabled(not processing)
+
+        if processing:
+            self._set_excel_controls_enabled(False)
+            self._set_to_column_enabled(False)
+        else:
+            self._apply_dependent_enable_state()
+
+        self._update_process_state()
+
+    def _build_run_config(self) -> RunConfig | None:
+        try:
+            return RunConfig(
+                template_path=Path(self._template_path.text().strip()),
+                excel_path=Path(self._excel_path.text().strip()),
+                to_column_key=self._selected_to_column_key(),
+                from_email=self._from_email.text().strip(),
+                tenant_id=self._tenant_id.text().strip(),
+                client_id=self._client_id.text().strip(),
+                client_secret=self._client_secret.text().strip(),
+                subject_template=self._subject_template.text().strip(),
+                save_to_sent=True,
+                dry_run=False,
+            )
+        except MailMergeError as exc:
+            self._show_error_dialog("Invalid configuration", str(exc))
+            return None
+
+    def _start_run(self, config: RunConfig) -> None:
+        self._set_processing(True)
+        self._cancel_event = threading.Event()
+
+        self._progress_dialog = QProgressDialog(
+            "Preparing mail merge...",
+            "Cancel",
+            0,
+            0,
+            self,
+        )
+        self._progress_dialog.setWindowTitle("Processing")
+        self._progress_dialog.setWindowModality(Qt.WindowModal)
+        self._progress_dialog.setAutoClose(False)
+        self._progress_dialog.setAutoReset(False)
+        self._progress_dialog.canceled.connect(self._on_progress_canceled)
+        self._progress_dialog.show()
+
+        worker = _RunWorker(config, self._cancel_event)
+        worker.signals.progress.connect(self._on_run_progress)
+        worker.signals.error.connect(self._on_run_error)
+        worker.signals.finished.connect(self._on_run_finished)
+        self._thread_pool.start(worker)
+
     def _on_preview_clicked(self) -> None:
         self.statusBar().showMessage("Preview not yet implemented.", 5000)
 
     def _on_process_clicked(self) -> None:
-        self.statusBar().showMessage("Processing not yet implemented.", 5000)
+        if self._processing:
+            return
+        config = self._build_run_config()
+        if config is None:
+            return
+        self._start_run(config)
+
+    def _on_progress_canceled(self) -> None:
+        if self._cancel_event is not None:
+            self._cancel_event.set()
+        if self._progress_dialog is not None:
+            self._progress_dialog.setLabelText("Cancelling...")
+
+    def _on_run_progress(self, event: ProgressEvent) -> None:
+        if self._progress_dialog is None:
+            return
+        if self._progress_dialog.maximum() != event.total:
+            self._progress_dialog.setMaximum(event.total)
+        self._progress_dialog.setValue(event.processed)
+        self._progress_dialog.setLabelText(
+            f"Processing row {event.row_index} ({event.processed}/{event.total})"
+        )
+        self.statusBar().showMessage(
+            f"Processed {event.processed} of {event.total} rows.",
+        )
+
+    def _on_run_error(self, message: str) -> None:
+        self._finish_run()
+        self._show_error_dialog("Run failed", message)
+
+    def _on_run_finished(self, summary: RunSummary) -> None:
+        cancelled = bool(self._cancel_event and self._cancel_event.is_set())
+        self._finish_run()
+        self._show_summary_dialog(summary, cancelled)
+
+    def _finish_run(self) -> None:
+        if self._progress_dialog is not None:
+            self._progress_dialog.close()
+            self._progress_dialog = None
+        self._cancel_event = None
+        self._set_processing(False)
+
+    def _show_summary_dialog(self, summary: RunSummary, cancelled: bool) -> None:
+        message_lines = []
+        if cancelled and summary.processed_rows < summary.total_rows:
+            message_lines.append("Run cancelled.")
+        message_lines.append(
+            f"Processed {summary.processed_rows} of {summary.total_rows} rows."
+        )
+        message_lines.append(f"Successes: {summary.success_count}")
+        message_lines.append(f"Failures: {summary.failure_count}")
+
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("Run summary")
+        dialog.setIcon(QMessageBox.Information)
+        dialog.setText("\n".join(message_lines))
+
+        failure_details = self._format_failure_details(summary)
+        if failure_details:
+            dialog.setDetailedText(failure_details)
+        dialog.exec()
+
+    def _format_failure_details(self, summary: RunSummary) -> str:
+        failures: list[str] = []
+        for result in summary.results:
+            if result.success:
+                continue
+            error_text = str(result.error) if result.error else "Unknown error"
+            failures.append(f"Row {result.row.row_index}: {error_text}")
+        return "\n".join(failures)
+
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        QMessageBox.warning(self, title, message)
