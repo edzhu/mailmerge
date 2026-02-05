@@ -25,10 +25,16 @@ python -m app.main
 
 ## Running the GUI (optional, requires PySide6)
 ```bash
-pip install PySide6
+pip install ".[gui]"
+# Optional: enable the richer HTML preview.
+pip install ".[preview]"
+# Or install both in one step:
+# pip install ".[gui,preview]"
 python -m app.main --gui
 ```
 If PySide6 is not installed, the CLI will report the missing dependency and exit.
+If the QtWebEngine module is unavailable, the preview dialog falls back to the basic text
+browser view.
 
 ## Offline-safe testing
 ```bash
