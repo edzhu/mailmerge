@@ -40,7 +40,19 @@ ExcelLoader = Callable[[Path, TemplateInfo], tuple[SheetInfo, list[RowData]]]
 Merger = Callable[[bytes, TemplateInfo, RowData], bytes]
 Renderer = Callable[[bytes], str]
 ProgressCallback = Callable[["ProgressEvent"], None]
-AuditWriter = Callable[[Mapping[str, Any]], None]
+class AuditWriterProtocol(Protocol):
+    """Protocol for audit writer implementations."""
+
+    def write_row_event(self, event: Mapping[str, Any]) -> None:
+        """Write a row-level audit event."""
+        ...
+
+
+AuditWriterCallable = Callable[[Mapping[str, Any]], None]
+AuditWriter = AuditWriterProtocol | AuditWriterCallable
+
+_IDENTIFIER_LABELS = ("序号", "姓名")
+_IDENTIFIER_KEYS = {label: canonicalize(label) for label in _IDENTIFIER_LABELS}
 
 
 @dataclass
@@ -369,6 +381,22 @@ def _emit_progress(
         logger.warning("Progress callback raised an exception.")
 
 
+def _extract_identifiers(row: RowData) -> dict[str, Any]:
+    identifiers: dict[str, Any] = {}
+    for label, key in _IDENTIFIER_KEYS.items():
+        if key not in row.values_by_key:
+            continue
+        value = row.values_by_key[key]
+        if value is None:
+            continue
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                continue
+        identifiers[label] = value
+    return identifiers
+
+
 def _write_audit_event(
     audit_writer: Optional[AuditWriter],
     row: RowData,
@@ -377,21 +405,25 @@ def _write_audit_event(
 ) -> None:
     if audit_writer is None:
         return
+    identifiers = _extract_identifiers(row)
     event: dict[str, Any] = {
         "row_index": row.row_index,
+        "identifiers": identifiers,
         "recipient": outcome.recipient,
         "status": outcome.status,
         "error": str(outcome.result.error) if outcome.result.error else None,
     }
     try:
-        if callable(audit_writer):
+        if hasattr(audit_writer, "write_row_event"):
+            audit_writer.write_row_event(event)
+        elif callable(audit_writer):
             audit_writer(event)
         elif hasattr(audit_writer, "write_event"):
             audit_writer.write_event(event)
         elif hasattr(audit_writer, "write"):
             audit_writer.write(event)
         else:
-            logger.debug("Audit writer does not expose a callable interface.")
+            logger.debug("Audit writer does not expose a compatible interface.")
     except Exception:  # pragma: no cover - avoid interrupting the run
         logger.warning("Audit writer raised an exception for row %s.", row.row_index)
 
