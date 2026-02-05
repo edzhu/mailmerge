@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import re
-
 from app.core.models import CellValue, ColumnInfo, RowData, SheetInfo
-
-_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+from app.core.validation import is_valid_email
 
 
 def detect_email_columns(
@@ -54,7 +51,4 @@ def _is_empty_value(value: CellValue) -> bool:
 def _is_email_value(value: CellValue) -> bool:
     if not isinstance(value, str):
         return False
-    candidate = value.strip()
-    if not candidate:
-        return False
-    return _EMAIL_PATTERN.fullmatch(candidate) is not None
+    return is_valid_email(value)
