@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Mapping, Optional, Sequence
+from datetime import date, datetime
+from numbers import Number
+from typing import Dict, Mapping, Optional, Sequence, Union
+
+CellValue = Union[str, Number, datetime, date, None]
 
 
 @dataclass
@@ -65,7 +69,7 @@ class RowData:
     """Represents a single row of input data keyed by column key."""
 
     row_index: int
-    values_by_key: Mapping[str, Optional[str]]
+    values_by_key: Mapping[str, CellValue]
 
 
 @dataclass
