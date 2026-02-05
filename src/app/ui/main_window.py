@@ -27,7 +27,11 @@ from app.core.logging_setup import AuditWriter, configure_logging, create_run_di
 from app.core.models import RowData, SheetInfo, TemplateInfo
 from app.core.run_controller import ProgressEvent, RunConfig, RunController, RunSummary
 from app.core.template_analyzer import analyze_template
-from app.core.validation import is_valid_email
+from app.ui.run_logic import (
+    build_run_config_from_inputs,
+    is_from_email_valid,
+    run_controller_with_cancel,
+)
 
 
 class _TemplateAnalysisSignals(QObject):
@@ -111,8 +115,9 @@ class _RunWorker(QRunnable):
             logger = configure_logging(run_dir)
             audit_writer = AuditWriter(run_dir)
             controller = RunController(logger=logger, audit_writer=audit_writer)
-            summary = controller.run(
-                self._config,
+            summary = run_controller_with_cancel(
+                controller=controller,
+                config=self._config,
                 on_progress=self._emit_progress,
                 cancel_token=self._cancel_token,
             )
@@ -434,14 +439,14 @@ class MainWindow(QMainWindow):
         )
 
     def _from_email_valid(self) -> bool:
-        return is_valid_email(self._from_email.text())
+        return is_from_email_valid(self._from_email.text())
 
     def _update_email_style(self) -> None:
         value = self._from_email.text().strip()
         if not value:
             self._from_email.setStyleSheet("")
             return
-        if is_valid_email(value):
+        if is_from_email_valid(value):
             self._from_email.setStyleSheet("")
             return
         self._from_email.setStyleSheet("border: 1px solid #d9534f;")
@@ -481,15 +486,15 @@ class MainWindow(QMainWindow):
 
     def _build_run_config(self) -> RunConfig | None:
         try:
-            return RunConfig(
-                template_path=Path(self._template_path.text().strip()),
-                excel_path=Path(self._excel_path.text().strip()),
+            return build_run_config_from_inputs(
+                template_path=self._template_path.text(),
+                excel_path=self._excel_path.text(),
                 to_column_key=self._selected_to_column_key(),
-                from_email=self._from_email.text().strip(),
-                tenant_id=self._tenant_id.text().strip(),
-                client_id=self._client_id.text().strip(),
-                client_secret=self._client_secret.text().strip(),
-                subject_template=self._subject_template.text().strip(),
+                from_email=self._from_email.text(),
+                tenant_id=self._tenant_id.text(),
+                client_id=self._client_id.text(),
+                client_secret=self._client_secret.text(),
+                subject_template=self._subject_template.text(),
                 save_to_sent=True,
                 dry_run=False,
             )
