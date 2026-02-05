@@ -16,32 +16,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--gui",
         action="store_true",
-        help="Launch the placeholder GUI (requires tkinter).",
+        help="Launch the PySide6 GUI (requires PySide6).",
     )
     return parser
 
 
-def _launch_gui() -> None:
-    """Launch a minimal placeholder GUI."""
+def run_gui() -> int:
+    """Launch the PySide6 GUI and return the exit code."""
     try:
-        import tkinter as tk
+        from PySide6.QtWidgets import QApplication
     except ModuleNotFoundError as exc:
         raise OptionalDependencyError(
-            "tkinter is required for the --gui option."
+            "PySide6 is required to launch the GUI."
         ) from exc
 
-    root = tk.Tk()
-    root.title("Mail-merge emailer")
-    root.geometry("420x240")
+    from app.ui.main_window import MainWindow
 
-    label = tk.Label(
-        root,
-        text="Mail-merge emailer scaffold UI placeholder.",
-        padx=20,
-        pady=20,
-    )
-    label.pack()
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    return int(app.exec())
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -51,13 +45,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.gui:
         try:
-            _launch_gui()
+            return run_gui()
         except OptionalDependencyError as exc:
             print(str(exc), file=sys.stderr)
             return 2
-    else:
-        print("Mail-merge emailer scaffold. Use --gui to launch the placeholder UI.")
 
+    print("Mail-merge emailer scaffold. Use --gui to launch the GUI.")
     return 0
 
 
