@@ -15,6 +15,7 @@ class FieldInfo:
     label: Optional[str] = None
     required: bool = True
     source: Optional[str] = None
+    format_hint: Optional[str] = None
 
 
 @dataclass
