@@ -2,36 +2,49 @@
 
 Minimal Python workspace for building macOS and Windows UI executables using PyInstaller.
 
-## Requirements
+## Installation
 - Python 3.9+ (recommended 3.11)
-
-## Setup
 ```bash
 python -m venv .venv
+# macOS/Linux
 source .venv/bin/activate
+# Windows PowerShell
+# .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 pip install -e .
 ```
+Keep secrets out of the repository. If you add integrations that require credentials,
+provide them via environment variables (for example, `export APP_SECRET="..."`) and
+avoid committing them to source control.
 
-## Run the app (development)
+## Running the CLI (dry-run)
+The default CLI path is a dry-run that prints a status message and exits.
 ```bash
 python -m app.main
 ```
 
-## Build macOS executable
+## Running the GUI (optional, requires PySide6)
 ```bash
-pyinstaller --onefile --windowed --name UIApp src/app/main.py
+pip install PySide6
+python -m app.main --gui
 ```
-The output executable will be in `dist/`.
+If PySide6 is not installed, the CLI will report the missing dependency and exit.
 
-## Build Windows executable (PowerShell)
-```powershell
-pyinstaller --onefile --windowed --name UIApp src/app/main.py
+## Offline-safe testing
+```bash
+pytest -q
 ```
-The output executable will be in `dist/`.
+Tests are expected to run without network access; avoid adding tests that call out
+to external services.
 
-## Helper scripts
+## Packaging (PyInstaller)
+Use the helper scripts, which create a virtual environment, install dependencies,
+and run PyInstaller:
 - `scripts/build_macos.sh`
 - `scripts/build_windows.ps1`
 
-These scripts create a virtual environment, install dependencies, and run PyInstaller.
+Manual command (both platforms):
+```bash
+pyinstaller --onefile --windowed --name UIApp src/app/main.py
+```
+The output executable will be in `dist/` (macOS) or `dist\UIApp.exe` (Windows).
