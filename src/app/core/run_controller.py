@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Protocol
@@ -199,6 +199,41 @@ class RunController:
         except Exception as exc:  # pragma: no cover - defensive guardrail
             raise MailMergeError("Mail merge run failed.") from exc
 
+    def preview_row(
+        self,
+        *,
+        config: RunConfig,
+        row: RowData,
+        template_info: TemplateInfo,
+        template_bytes: bytes | None = None,
+    ) -> RowResult:
+        """Render a single row without sending any email."""
+        try:
+            preview_config = replace(config, dry_run=True)
+            _validate_run_config(preview_config)
+            if template_bytes is None:
+                template_bytes = _load_template_bytes(preview_config.template_path)
+            elif not template_bytes:
+                raise TemplateValidationError(
+                    f"Template is empty: {preview_config.template_path}"
+                )
+            _ensure_row_recipient_column(preview_config.to_column_key, row)
+            outcome = _process_row(
+                row=row,
+                config=preview_config,
+                to_column_key=preview_config.to_column_key,
+                template_bytes=template_bytes,
+                template_info=template_info,
+                merger=self._merger,
+                renderer=self._renderer,
+                graph_client=None,
+            )
+            return outcome.result
+        except MailMergeError:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive guardrail
+            raise MailMergeError("Preview rendering failed.") from exc
+
 
 def _default_graph_client_factory(
     tenant_id: str,
@@ -278,6 +313,13 @@ def _ensure_recipient_column(to_column_key: str, sheet_info: SheetInfo) -> None:
     if to_column_key not in sheet_info.columns_by_key:
         raise ConfigurationError(
             f"Recipient column '{to_column_key}' not found in sheet '{sheet_info.name}'."
+        )
+
+
+def _ensure_row_recipient_column(to_column_key: str, row: RowData) -> None:
+    if to_column_key not in row.values_by_key:
+        raise ConfigurationError(
+            f"Recipient column '{to_column_key}' not found in row {row.row_index}."
         )
 
 

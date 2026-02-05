@@ -32,6 +32,7 @@ from app.ui.run_logic import (
     is_from_email_valid,
     run_controller_with_cancel,
 )
+from app.ui.preview_dialog import PreviewDialog
 
 
 class _TemplateAnalysisSignals(QObject):
@@ -502,6 +503,34 @@ class MainWindow(QMainWindow):
             self._show_error_dialog("Invalid configuration", str(exc))
             return None
 
+    def _build_preview_config(self) -> RunConfig | None:
+        to_column_key = self._selected_to_column_key()
+        if not to_column_key:
+            self._show_error_dialog(
+                "Preview unavailable",
+                "Select a recipient column before previewing.",
+            )
+            return None
+        from_email = self._from_email.text()
+        if from_email and not is_from_email_valid(from_email):
+            from_email = ""
+        try:
+            return build_run_config_from_inputs(
+                template_path=self._template_path.text(),
+                excel_path=self._excel_path.text(),
+                to_column_key=to_column_key,
+                from_email=from_email,
+                tenant_id="",
+                client_id="",
+                client_secret="",
+                subject_template=self._subject_template.text(),
+                save_to_sent=False,
+                dry_run=True,
+            )
+        except MailMergeError as exc:
+            self._show_error_dialog("Invalid configuration", str(exc))
+            return None
+
     def _start_run(self, config: RunConfig) -> None:
         self._set_processing(True)
         self._cancel_event = threading.Event()
@@ -527,7 +556,31 @@ class MainWindow(QMainWindow):
         self._thread_pool.start(worker)
 
     def _on_preview_clicked(self) -> None:
-        self.statusBar().showMessage("Preview not yet implemented.", 5000)
+        if self._processing:
+            return
+        if self._template_info is None or self._sheet_info is None:
+            self._show_error_dialog(
+                "Preview unavailable",
+                "Load a template and spreadsheet before previewing.",
+            )
+            return
+        if not self._loaded_rows:
+            self._show_error_dialog(
+                "Preview unavailable",
+                "Spreadsheet contains no rows to preview.",
+            )
+            return
+        config = self._build_preview_config()
+        if config is None:
+            return
+        dialog = PreviewDialog(
+            config=config,
+            template_info=self._template_info,
+            sheet_info=self._sheet_info,
+            rows=self._loaded_rows,
+            parent=self,
+        )
+        dialog.exec()
 
     def _on_process_clicked(self) -> None:
         if self._processing:
