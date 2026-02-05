@@ -1,2 +1,4 @@
 pyinstaller>=6.0
 mammoth>=1.6.0
+requests>=2.31.0
+msal>=1.25.0
