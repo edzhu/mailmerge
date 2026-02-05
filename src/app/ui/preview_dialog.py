@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from app.core.canonicalize import canonicalize
 from app.core.models import RowData, RowResult, SheetInfo, TemplateInfo
 from app.core.run_controller import RunConfig, RunController
+from app.ui.preview_logic import apply_preview_result_to_viewer
 from app.ui.worker import ControllerWorker
 
 _IDENTIFIER_LABELS = ("序号", "姓名")
@@ -173,11 +174,12 @@ class PreviewDialog(QDialog):
         )
 
     def _on_render_result(self, result: RowResult) -> None:
-        self._subject_value.setText(result.rendered_subject or "")
-        if result.rendered_body:
-            self._set_html(result.rendered_body)
-        else:
-            self._set_html(self._empty_html("No HTML output generated."))
+        apply_preview_result_to_viewer(
+            result,
+            set_subject=self._subject_value.setText,
+            set_html=self._set_html,
+            empty_html=self._empty_html,
+        )
         if not result.success:
             message = str(result.error) if result.error else "Preview failed."
             QMessageBox.warning(self, "Preview error", message)
