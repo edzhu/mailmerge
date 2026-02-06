@@ -1,4 +1,4 @@
-# UI App (Python)
+# mailmerge (Python)
 
 Minimal Python workspace for building macOS and Windows UI executables using PyInstaller.
 
