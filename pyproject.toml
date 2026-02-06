@@ -49,11 +49,9 @@ ui-app = "mailmerge.main:main"
 [tool.hatch.build]
 exclude = [
     "src/mailmerge.egg-info/**",
-    "core/**",
     "docs/**",
     "scripts/**",
     "tests/**",
-    "ui/**",
 ]
 
 [tool.hatch.build.targets.wheel]
