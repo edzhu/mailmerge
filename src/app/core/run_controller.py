@@ -193,6 +193,8 @@ class RunController:
                 success_count=success_count,
                 failure_count=failure_count,
                 results=results,
+                run_dir=None,
+                results_csv_path=None,
             )
         except MailMergeError:
             raise

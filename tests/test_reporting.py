@@ -42,6 +42,8 @@ def _build_summary() -> RunSummary:
         success_count=1,
         failure_count=2,
         results=[result_one, result_two, result_three],
+        run_dir=None,
+        results_csv_path=None,
     )
 
 
