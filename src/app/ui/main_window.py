@@ -675,8 +675,12 @@ class MainWindow(QMainWindow):
         if self._progress_dialog.maximum() != event.total:
             self._progress_dialog.setMaximum(event.total)
         self._progress_dialog.setValue(event.processed)
+        recipient = event.recipient.strip() if event.recipient else ""
+        recipient_label = recipient or "(no recipient)"
         self._progress_dialog.setLabelText(
-            f"Processing row {event.row_index} ({event.processed}/{event.total})"
+            "Processing row "
+            f"{event.row_index} for {recipient_label} "
+            f"({event.processed}/{event.total})"
         )
         self.statusBar().showMessage(
             f"Processed {event.processed} of {event.total} rows.",
