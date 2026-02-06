@@ -21,6 +21,9 @@ dependencies = [
 [project.optional-dependencies]
 gui = ["PySide6>=6.5.0"]
 preview = ["PySide6-QtWebEngine>=6.5.0"]
+build = ["pyinstaller>=6.0"]
+test = ["pytest>=8.2.0"]
+dev = ["ruff", "black", "mypy", "pre-commit"]
 
 [project.scripts]
 mailmerge = "mailmerge.main:main"
