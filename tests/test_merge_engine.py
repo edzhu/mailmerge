@@ -50,6 +50,15 @@ def _require_lxml() -> None:
     pytest.importorskip("lxml")
 
 
+def _extract_document_text(document_xml: str) -> str:
+    _require_lxml()
+    from lxml import etree
+
+    root = etree.fromstring(document_xml.encode("utf-8"))
+    text_nodes = root.xpath(".//w:t", namespaces={"w": _WORD_NAMESPACE})
+    return "".join(node.text or "" for node in text_nodes)
+
+
 @pytest.mark.parametrize(
     ("value", "format_hint", "expected"),
     [
@@ -115,3 +124,27 @@ def test_merge_docx_handles_split_token_runs() -> None:
     assert "Grace Hopper" in merged_xml
     assert "«" not in merged_xml
     assert "»" not in merged_xml
+
+
+def test_merge_docx_replaces_mergefield_results_without_tokens() -> None:
+    _require_lxml()
+    body = (
+        "<w:p>"
+        "<w:r><w:t>Hello </w:t></w:r>"
+        "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>"
+        "<w:r><w:instrText xml:space=\"preserve\"> MERGEFIELD Name </w:instrText></w:r>"
+        "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+        "<w:r><w:t>Old</w:t></w:r>"
+        "<w:r><w:t>Value</w:t></w:r>"
+        "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"
+        "<w:r><w:t>!</w:t></w:r>"
+        "</w:p>"
+    )
+    docx_bytes = _docx_bytes(body)
+    template = _build_template(["Name"])
+    row = RowData(row_index=1, values_by_key={"Name": "Ada Lovelace"})
+
+    merged_bytes = merge_docx_bytes(docx_bytes, template, row)
+    merged_xml = _read_document_xml(merged_bytes)
+
+    assert _extract_document_text(merged_xml) == "Hello Ada Lovelace!"
