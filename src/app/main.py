@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from typing import Sequence
 
 from app.core.errors import OptionalDependencyError
+
+logger = logging.getLogger(__name__)
+
+
+def _configure_logging() -> None:
+    """Configure default logging for CLI runs when no handlers exist."""
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        return
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -40,6 +51,7 @@ def run_gui() -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the mail-merge emailer CLI."""
+    _configure_logging()
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -47,10 +59,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             return run_gui()
         except OptionalDependencyError as exc:
-            print(str(exc), file=sys.stderr)
+            logger.error("%s", exc)
             return 2
 
-    print("Mail-merge emailer scaffold. Use --gui to launch the GUI.")
+    logger.info("Mail-merge emailer scaffold. Use --gui to launch the GUI.")
     return 0
 
 
