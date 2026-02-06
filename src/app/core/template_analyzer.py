@@ -39,16 +39,43 @@ class _FieldCandidate:
     format_hint: Optional[str]
 
 
+@dataclass
+class _MalformedFieldCounts:
+    empty_original_name: int = 0
+    empty_canonical_name: int = 0
+
+
 def analyze_template(path: Path) -> TemplateInfo:
     """Analyze a Word template and return the merge fields it defines."""
     template_path = Path(path)
     document_xml = _load_document_xml(template_path)
     root = _parse_document_xml(document_xml)
-    candidates = _extract_candidates(root)
+    candidates, malformed_counts = _extract_candidates(root)
     fields = _merge_candidates(candidates)
     if not fields:
         raise TemplateValidationError("Template contains no merge fields")
-    return TemplateInfo(template_name=template_path.name, fields=fields)
+    warnings = _build_template_warnings(malformed_counts)
+    return TemplateInfo(
+        template_name=template_path.name,
+        fields=fields,
+        warnings=warnings,
+    )
+
+
+def _build_template_warnings(counts: _MalformedFieldCounts) -> list[str]:
+    warnings: list[str] = []
+    if counts.empty_original_name:
+        warnings.append(
+            "Ignored "
+            f"{counts.empty_original_name} malformed merge fields with empty names."
+        )
+    if counts.empty_canonical_name:
+        warnings.append(
+            "Ignored "
+            f"{counts.empty_canonical_name} malformed merge fields with names that "
+            "normalize to empty."
+        )
+    return warnings
 
 
 def _load_document_xml(path: Path) -> bytes:
@@ -87,15 +114,19 @@ def _load_lxml() -> Any:
     return etree
 
 
-def _extract_candidates(root: Any) -> List[_FieldCandidate]:
+def _extract_candidates(root: Any) -> tuple[List[_FieldCandidate], _MalformedFieldCounts]:
     """Extract merge field and token candidates from the document tree."""
     candidates: List[_FieldCandidate] = []
+    counts = _MalformedFieldCounts()
     for paragraph in root.xpath(".//w:p", namespaces=_NSMAP):
-        candidates.extend(_extract_paragraph_candidates(paragraph))
-    return candidates
+        candidates.extend(_extract_paragraph_candidates(paragraph, counts))
+    return candidates, counts
 
 
-def _extract_paragraph_candidates(paragraph: Any) -> List[_FieldCandidate]:
+def _extract_paragraph_candidates(
+    paragraph: Any,
+    counts: _MalformedFieldCounts,
+) -> List[_FieldCandidate]:
     events: List[_FieldCandidate] = []
     instr_texts: List[str] = []
     first_instr_position: Optional[int] = None
@@ -107,13 +138,17 @@ def _extract_paragraph_candidates(paragraph: Any) -> List[_FieldCandidate]:
             text = element.text or ""
             instr_texts.append(text)
             for merge_field in _parse_mergefields(text):
-                candidate = _candidate_from_mergefield(merge_field)
+                candidate = _candidate_from_mergefield(
+                    merge_field,
+                    counts,
+                    count_malformed=False,
+                )
                 if candidate:
                     events.append(candidate)
         elif element.tag == f"{{{_WORD_NAMESPACE}}}t":
             text = element.text or ""
             for token in _extract_tokens(text):
-                candidate = _candidate_from_token(token)
+                candidate = _candidate_from_token(token, counts)
                 if candidate:
                     events.append(candidate)
 
@@ -121,7 +156,11 @@ def _extract_paragraph_candidates(paragraph: Any) -> List[_FieldCandidate]:
         joined_text = "".join(instr_texts)
         joined_candidates: List[_FieldCandidate] = []
         for merge_field in _parse_mergefields(joined_text):
-            candidate = _candidate_from_mergefield(merge_field)
+            candidate = _candidate_from_mergefield(
+                merge_field,
+                counts,
+                count_malformed=True,
+            )
             if candidate:
                 joined_candidates.append(candidate)
         if joined_candidates:
@@ -149,9 +188,7 @@ def _extract_paragraph_candidates(paragraph: Any) -> List[_FieldCandidate]:
 def _extract_tokens(text: str) -> List[str]:
     tokens: List[str] = []
     for match in _TOKEN_PATTERN.finditer(text):
-        value = match.group(1).strip()
-        if value:
-            tokens.append(value)
+        tokens.append(match.group(1))
     return tokens
 
 
@@ -165,7 +202,7 @@ def _parse_mergefields(text: str) -> List[_MergeField]:
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         segment = text[match.end() : end]
         name, remainder = _extract_field_name(segment)
-        if not name:
+        if name is None:
             continue
         format_hint = _extract_format_hint(remainder)
         results.append(_MergeField(name=name, format_hint=format_hint))
@@ -175,7 +212,7 @@ def _parse_mergefields(text: str) -> List[_MergeField]:
 def _extract_field_name(segment: str) -> tuple[Optional[str], str]:
     remainder = segment.lstrip()
     if not remainder:
-        return None, ""
+        return "", ""
     if remainder[0] == '"':
         closing = remainder.find('"', 1)
         if closing == -1:
@@ -212,20 +249,51 @@ def _candidate_from_mergefield(merge_field: _MergeField) -> Optional[_FieldCandi
     )
 
 
-def _candidate_from_token(token: str) -> Optional[_FieldCandidate]:
-    return _build_candidate(token, source="token", format_hint=None)
+def _candidate_from_mergefield(
+    merge_field: _MergeField,
+    counts: _MalformedFieldCounts,
+    *,
+    count_malformed: bool,
+) -> Optional[_FieldCandidate]:
+    return _build_candidate(
+        merge_field.name,
+        source="mergefield",
+        format_hint=merge_field.format_hint,
+        counts=counts,
+        count_malformed=count_malformed,
+    )
+
+
+def _candidate_from_token(
+    token: str,
+    counts: _MalformedFieldCounts,
+) -> Optional[_FieldCandidate]:
+    return _build_candidate(
+        token,
+        source="token",
+        format_hint=None,
+        counts=counts,
+        count_malformed=True,
+    )
 
 
 def _build_candidate(
     name: str,
     source: str,
     format_hint: Optional[str],
+    counts: _MalformedFieldCounts,
+    *,
+    count_malformed: bool,
 ) -> Optional[_FieldCandidate]:
     cleaned = name.strip()
     if not cleaned:
+        if count_malformed:
+            counts.empty_original_name += 1
         return None
     key = canonicalize(cleaned)
     if not key:
+        if count_malformed:
+            counts.empty_canonical_name += 1
         return None
     return _FieldCandidate(
         key=key,
