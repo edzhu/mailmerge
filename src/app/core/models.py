@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from numbers import Number
+from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Union
 
 CellValue = Union[str, Number, datetime, date, None]
@@ -93,6 +94,8 @@ class RunSummary:
     success_count: int
     failure_count: int
     results: Sequence[RowResult] = field(default_factory=list)
+    run_dir: Path | None = None
+    results_csv_path: Path | None = None
 
     @property
     def processed_rows(self) -> int:
