@@ -108,6 +108,39 @@ def test_send_mail_success_includes_authorization_header() -> None:
     assert payload["message"]["subject"] == "Hello"
 
 
+def test_send_mail_success_merges_payload_and_metadata() -> None:
+    session = DummySession(
+        [
+            make_response(
+                202,
+                json_body={"id": "message-123"},
+                headers={"request-id": "req-999", "client-request-id": "client-999"},
+            )
+        ]
+    )
+    client = GraphClient(
+        "tenant",
+        "client",
+        "secret",
+        session=session,
+        msal_app=DummyMsalApp(access_token="token-123"),
+        clock=fixed_clock,
+        sleeper=lambda _: None,
+    )
+
+    result = client.send_mail(
+        "sender@example.com",
+        "to@example.com",
+        "Hello",
+        "<p>Body</p>",
+    )
+
+    assert result["id"] == "message-123"
+    assert result["request_id"] == "req-999"
+    assert result["client_request_id"] == "client-999"
+    assert result["status_code"] == 202
+
+
 def test_send_mail_retries_on_429_then_succeeds() -> None:
     session = DummySession(
         [

@@ -15,8 +15,9 @@ from app.core.run_controller import ProgressEvent, RunConfig, RunController
 class StubGraphClient:
     """Graph client stub that records send_mail calls."""
 
-    def __init__(self) -> None:
+    def __init__(self, response_metadata: dict[str, Any] | None = None) -> None:
         self.calls: list[dict[str, Any]] = []
+        self.response_metadata = response_metadata or {"status": "sent"}
 
     def send_mail(
         self,
@@ -35,15 +36,15 @@ class StubGraphClient:
                 "save_to_sent": save_to_sent,
             }
         )
-        return {"status": "sent"}
+        return dict(self.response_metadata)
 
 
 class StubGraphClientFactory:
     """Graph client factory stub that records instantiation calls."""
 
-    def __init__(self) -> None:
+    def __init__(self, response_metadata: dict[str, Any] | None = None) -> None:
         self.calls: list[tuple[str, str, str]] = []
-        self.client = StubGraphClient()
+        self.client = StubGraphClient(response_metadata=response_metadata)
 
     def __call__(
         self,
@@ -128,6 +129,7 @@ def _build_controller(
     sheet_info: SheetInfo,
     template_info: TemplateInfo,
     graph_factory: StubGraphClientFactory,
+    audit_writer: Any | None = None,
 ) -> RunController:
     return RunController(
         graph_client_factory=graph_factory,
@@ -135,6 +137,7 @@ def _build_controller(
         excel_loader=lambda _path, _info: (sheet_info, rows),
         merger=_stub_merger,
         renderer=_stub_renderer,
+        audit_writer=audit_writer,
     )
 
 
@@ -273,6 +276,46 @@ def test_missing_recipient_marks_failure(tmp_path: Path, email: str | None) -> N
     assert "Missing recipient" in str(summary.results[1].error)
 
 
+def test_run_writes_audit_event_with_graph_request_id(tmp_path: Path) -> None:
+    template_info = _build_template_info()
+    sheet_info = _build_sheet_info()
+    rows = _build_rows(["ada@example.com"])
+    response_metadata = {
+        "request_id": "req-123",
+        "client_request_id": "client-456",
+        "status_code": 202,
+    }
+    graph_factory = StubGraphClientFactory(response_metadata=response_metadata)
+    audit_events: list[dict[str, Any]] = []
+
+    def audit_writer(event: dict[str, Any]) -> None:
+        audit_events.append(event)
+
+    controller = _build_controller(
+        rows,
+        sheet_info,
+        template_info,
+        graph_factory,
+        audit_writer=audit_writer,
+    )
+
+    summary = controller.run(_build_config(tmp_path, dry_run=False))
+
+    assert summary.success_count == 1
+    assert summary.failure_count == 0
+    result = summary.results[0]
+    assert result.graph_request_id == "req-123"
+    assert result.graph_client_request_id == "client-456"
+
+    assert len(audit_events) == 1
+    event = audit_events[0]
+    assert event["row_index"] == 2
+    assert event["recipient"] == "ada@example.com"
+    assert event["status"] == "success"
+    assert event["graph_request_id"] == "req-123"
+    assert event["graph_client_request_id"] == "client-456"
+
+
 def test_run_dir_writes_results_csv(tmp_path: Path) -> None:
     template_info = _build_template_info()
     sheet_info = _build_sheet_info()
@@ -306,6 +349,8 @@ def test_run_dir_writes_results_csv(tmp_path: Path) -> None:
         "identifier_序号",
         "identifier_姓名",
         "subject",
+        "graph_request_id",
+        "graph_client_request_id",
     ]
     assert (
         header == expected_header
@@ -316,10 +361,14 @@ def test_run_dir_writes_results_csv(tmp_path: Path) -> None:
     index_email = header.index("to_email")
     index_status = header.index("status")
     index_subject = header.index("subject")
+    index_request_id = header.index("graph_request_id")
+    index_client_request_id = header.index("graph_client_request_id")
 
     data_row = rows[1]
     assert data_row[index_row] == "2"
     assert data_row[index_email] == "ada@example.com"
     assert data_row[index_status] == "success"
     assert data_row[index_subject] == "Hello User 2"
+    assert data_row[index_request_id] == ""
+    assert data_row[index_client_request_id] == ""
 
