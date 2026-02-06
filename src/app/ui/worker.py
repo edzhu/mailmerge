@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import QObject, QRunnable, Signal, Slot
+
+logger = logging.getLogger(__name__)
 
 
 class WorkerSignals(QObject):
@@ -38,6 +41,7 @@ class ControllerWorker(QRunnable):
         try:
             result = self._fn(*self._args, **self._kwargs)
         except Exception as exc:
+            logger.exception("Worker execution failed.")
             self.signals.error.emit(str(exc))
         else:
             self.signals.result.emit(result)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import threading
 
@@ -36,6 +37,9 @@ from app.ui.to_column_logic import choose_to_columns
 from app.ui.preview_dialog import PreviewDialog
 
 _DEFAULT_SUBJECT_TEMPLATE = "薪酬单 {年份}年{月份}月 - {姓名}"
+
+
+logger = logging.getLogger(__name__)
 
 
 class _TemplateAnalysisSignals(QObject):
@@ -106,6 +110,7 @@ class _TemplateAnalysisWorker(QRunnable):
             self.signals.error.emit(str(exc))
             return
         except Exception:
+            logger.exception("Template analysis failed.")
             self.signals.error.emit("Template analysis failed.")
             return
         self.signals.finished.emit(template_info)
@@ -128,6 +133,7 @@ class _ExcelLoadWorker(QRunnable):
             self.signals.error.emit(_format_excel_load_error(exc))
             return
         except Exception as exc:
+            logger.exception("Spreadsheet load failed.")
             self.signals.error.emit(_format_excel_load_error(exc))
             return
         self.signals.finished.emit(sheet_info, rows)
@@ -144,11 +150,12 @@ class _RunWorker(QRunnable):
 
     @Slot()
     def run(self) -> None:
+        run_logger: logging.Logger | None = None
         try:
             run_dir = create_run_directory(None)
-            logger = configure_logging(run_dir)
+            run_logger = configure_logging(run_dir)
             audit_writer = AuditWriter(run_dir)
-            controller = RunController(logger=logger, audit_writer=audit_writer)
+            controller = RunController(logger=run_logger, audit_writer=audit_writer)
             summary = run_controller_with_cancel(
                 controller=controller,
                 config=self._config,
@@ -160,6 +167,10 @@ class _RunWorker(QRunnable):
             self.signals.error.emit(str(exc))
             return
         except Exception:
+            if run_logger is not None:
+                run_logger.exception("Mail merge run failed.")
+            else:
+                logger.exception("Mail merge run failed.")
             self.signals.error.emit("Mail merge run failed.")
             return
         self.signals.finished.emit(summary)
