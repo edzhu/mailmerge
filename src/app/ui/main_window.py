@@ -148,6 +148,7 @@ class MainWindow(QMainWindow):
         self._template_info: TemplateInfo | None = None
         self._sheet_info: SheetInfo | None = None
         self._loaded_rows: list[RowData] = []
+        self._sheet_warnings: list[str] = []
         self._processing = False
         self._cancel_event: threading.Event | None = None
         self._progress_dialog: QProgressDialog | None = None
@@ -275,6 +276,7 @@ class MainWindow(QMainWindow):
     def _reset_excel_state(self) -> None:
         self._sheet_info = None
         self._loaded_rows = []
+        self._sheet_warnings = []
         self._excel_request_id += 1
         self._clear_excel_path()
         self._clear_to_column()
@@ -354,6 +356,7 @@ class MainWindow(QMainWindow):
         request_id = self._excel_request_id
         self._sheet_info = None
         self._loaded_rows = []
+        self._sheet_warnings = []
         self._clear_to_column()
         self._set_to_column_enabled(False)
 
@@ -398,11 +401,12 @@ class MainWindow(QMainWindow):
         self._sheet_info = sheet_info
         self._loaded_rows = rows
         warnings = self._populate_to_column(sheet_info, rows)
+        self._sheet_warnings = warnings
         self._set_to_column_enabled(True)
         message = f"Loaded '{sheet_info.name}' with {len(rows)} rows."
         duration = 5000
-        if warnings:
-            message = f"{message} {' '.join(warnings)}"
+        if self._sheet_warnings:
+            message = f"{message} {' '.join(self._sheet_warnings)}"
             duration = 8000
         self.statusBar().showMessage(message, duration)
         self._update_process_state()
@@ -412,6 +416,7 @@ class MainWindow(QMainWindow):
             return
         self._sheet_info = None
         self._loaded_rows = []
+        self._sheet_warnings = []
         self._clear_to_column()
         self._set_to_column_enabled(False)
         self.statusBar().showMessage("Spreadsheet load failed.", 8000)
