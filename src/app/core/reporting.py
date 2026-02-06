@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from datetime import date, datetime
+import math
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -62,6 +63,8 @@ def write_results_csv(run_dir: Path, summary: RunSummary) -> Path:
 
 
 def _normalize_run_path(run_dir: Path) -> Path:
+    if run_dir is None:
+        raise MailMergeError("run_dir must be a valid path.")
     try:
         return Path(run_dir)
     except (TypeError, ValueError) as exc:
@@ -213,6 +216,8 @@ def _resolve_graph_client_request_id(result: RowResult) -> str:
 
 def _stringify_value(value: object) -> str:
     if value is None:
+        return ""
+    if isinstance(value, float) and math.isnan(value):
         return ""
     if isinstance(value, datetime):
         return value.isoformat()

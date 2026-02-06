@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+import math
 import logging
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Protocol
@@ -412,9 +413,14 @@ def _resolve_recipient(row: RowData, to_column_key: str) -> str:
     value = row.values_by_key.get(to_column_key)
     if value is None:
         return ""
+    if isinstance(value, float) and math.isnan(value):
+        return ""
     if isinstance(value, str):
         return value.strip()
-    return str(value).strip()
+    text = str(value).strip()
+    if text.lower() == "nan":
+        return ""
+    return text
 
 
 def _failure_outcome(

@@ -293,12 +293,17 @@ class GraphClient:
 
     def _request_metadata(self, response: requests.Response) -> dict[str, Any]:
         """Extract request identifiers and status code from a response."""
+        headers = getattr(response, "headers", None) or {}
         return {
             "request_id": self._normalize_header_value(
-                response.headers.get("request-id")
+                headers.get("request-id")
+                or headers.get("request_id")
+                or headers.get("x-ms-request-id")
             ),
             "client_request_id": self._normalize_header_value(
-                response.headers.get("client-request-id")
+                headers.get("client-request-id")
+                or headers.get("client_request_id")
+                or headers.get("x-ms-client-request-id")
             ),
             "status_code": response.status_code,
         }
@@ -306,6 +311,11 @@ class GraphClient:
     def _normalize_header_value(self, value: str | None) -> str | None:
         if value is None:
             return None
+        if not isinstance(value, str):
+            try:
+                value = str(value)
+            except Exception:
+                return None
         stripped = value.strip()
         return stripped or None
 

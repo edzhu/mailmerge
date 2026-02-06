@@ -264,8 +264,11 @@ def _replace_mergefields_in_paragraph(
             if not contexts:
                 continue
             context = contexts[-1]
-            if context.in_result and context.is_mergefield:
-                context.result_nodes.append(element)
+            if context.in_result:
+                if context.is_mergefield:
+                    context.result_nodes.append(element)
+                continue
+            context.instr_text_parts.append(element.text or "")
 
     while contexts:
         context = contexts.pop()
