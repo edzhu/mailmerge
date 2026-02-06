@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from numbers import Number
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Sequence, Union
 
-CellValue = Union[str, Number, datetime, date, None]
+CellValue = str | Number | datetime | date | None
 
 
 @dataclass
@@ -17,10 +17,10 @@ class FieldInfo:
 
     key: str
     placeholder: str
-    label: Optional[str] = None
+    label: str | None = None
     required: bool = True
-    source: Optional[str] = None
-    format_hint: Optional[str] = None
+    source: str | None = None
+    format_hint: str | None = None
 
 
 @dataclass
@@ -30,11 +30,11 @@ class TemplateInfo:
     template_name: str
     fields: Sequence[FieldInfo] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    subject_template: Optional[str] = None
-    body_template: Optional[str] = None
+    subject_template: str | None = None
+    body_template: str | None = None
 
     @property
-    def fields_by_key(self) -> Dict[str, FieldInfo]:
+    def fields_by_key(self) -> dict[str, FieldInfo]:
         """Return a mapping of field keys to field metadata."""
 
         return {field_info.key: field_info for field_info in self.fields}
@@ -58,10 +58,10 @@ class SheetInfo:
     columns: Sequence[ColumnInfo] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     header_row_index: int = 1
-    row_count: Optional[int] = None
+    row_count: int | None = None
 
     @property
-    def columns_by_key(self) -> Dict[str, ColumnInfo]:
+    def columns_by_key(self) -> dict[str, ColumnInfo]:
         """Return a mapping of column keys to column metadata."""
 
         return {column.key: column for column in self.columns}
@@ -81,11 +81,11 @@ class RowResult:
 
     row: RowData
     success: bool
-    rendered_subject: Optional[str] = None
-    rendered_body: Optional[str] = None
-    error: Optional[Exception] = None
-    graph_request_id: Optional[str] = None
-    graph_client_request_id: Optional[str] = None
+    rendered_subject: str | None = None
+    rendered_body: str | None = None
+    error: Exception | None = None
+    graph_request_id: str | None = None
+    graph_client_request_id: str | None = None
 
 
 @dataclass

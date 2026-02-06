@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
-import math
 import logging
+import math
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional, Protocol
+from typing import Any, Protocol
 
 from app.core.canonicalize import canonicalize
 from app.core.errors import ConfigurationError, MailMergeError, TemplateValidationError
@@ -42,6 +43,7 @@ ExcelLoader = Callable[[Path, TemplateInfo], tuple[SheetInfo, list[RowData]]]
 Merger = Callable[[bytes, TemplateInfo, RowData], bytes]
 Renderer = Callable[[bytes], str]
 ProgressCallback = Callable[["ProgressEvent"], None]
+
 class AuditWriterProtocol(Protocol):
     """Protocol for audit writer implementations."""
 
@@ -107,13 +109,13 @@ class RunController:
 
     def __init__(
         self,
-        graph_client_factory: Optional[GraphClientFactory] = None,
-        template_analyzer: Optional[TemplateAnalyzer] = None,
-        excel_loader: Optional[ExcelLoader] = None,
-        merger: Optional[Merger] = None,
-        renderer: Optional[Renderer] = None,
-        logger: Optional[logging.Logger] = None,
-        audit_writer: Optional[AuditWriter] = None,
+        graph_client_factory: GraphClientFactory | None = None,
+        template_analyzer: TemplateAnalyzer | None = None,
+        excel_loader: ExcelLoader | None = None,
+        merger: Merger | None = None,
+        renderer: Renderer | None = None,
+        logger: logging.Logger | None = None,
+        audit_writer: AuditWriter | None = None,
     ) -> None:
         self._graph_client_factory = graph_client_factory or _default_graph_client_factory
         self._template_analyzer = template_analyzer or analyze_template
@@ -126,8 +128,8 @@ class RunController:
     def run(
         self,
         config: RunConfig,
-        on_progress: Optional[ProgressCallback] = None,
-        cancel_token: Optional[object] = None,
+        on_progress: ProgressCallback | None = None,
+        cancel_token: object | None = None,
         run_dir: Path | None = None,
     ) -> RunSummary:
         """Execute a mail-merge run and return a summary."""
@@ -146,7 +148,7 @@ class RunController:
             )
             _ensure_recipient_column(config.to_column_key, sheet_info)
 
-            graph_client: Optional[GraphClientProtocol] = None
+            graph_client: GraphClientProtocol | None = None
             if not config.dry_run:
                 graph_client = self._graph_client_factory(
                     config.tenant_id,
@@ -341,7 +343,7 @@ def _process_row(
     template_info: TemplateInfo,
     merger: Merger,
     renderer: Renderer,
-    graph_client: Optional[GraphClientProtocol],
+    graph_client: GraphClientProtocol | None,
 ) -> _RowOutcome:
     recipient = _resolve_recipient(row, to_column_key)
     if not recipient:
@@ -359,10 +361,10 @@ def _process_row(
             result=result,
         )
 
-    rendered_subject: Optional[str] = None
-    rendered_body: Optional[str] = None
-    graph_request_id: Optional[str] = None
-    graph_client_request_id: Optional[str] = None
+    rendered_subject: str | None = None
+    rendered_body: str | None = None
+    graph_request_id: str | None = None
+    graph_client_request_id: str | None = None
 
     try:
         merged_bytes = merger(template_bytes, template_info, row)
@@ -426,11 +428,11 @@ def _resolve_recipient(row: RowData, to_column_key: str) -> str:
 def _failure_outcome(
     row: RowData,
     recipient: str,
-    rendered_subject: Optional[str],
-    rendered_body: Optional[str],
+    rendered_subject: str | None,
+    rendered_body: str | None,
     error: Exception,
-    graph_request_id: Optional[str] = None,
-    graph_client_request_id: Optional[str] = None,
+    graph_request_id: str | None = None,
+    graph_client_request_id: str | None = None,
 ) -> _RowOutcome:
     result = RowResult(
         row=row,
@@ -445,7 +447,7 @@ def _failure_outcome(
 
 
 def _emit_progress(
-    callback: Optional[ProgressCallback],
+    callback: ProgressCallback | None,
     event: ProgressEvent,
     logger: logging.Logger,
 ) -> None:
@@ -474,7 +476,7 @@ def _extract_identifiers(row: RowData) -> dict[str, Any]:
 
 
 def _write_audit_event(
-    audit_writer: Optional[AuditWriter],
+    audit_writer: AuditWriter | None,
     row: RowData,
     outcome: _RowOutcome,
     logger: logging.Logger,
@@ -511,7 +513,7 @@ def _write_audit_event(
         logger.warning("Audit writer raised an exception for row %s.", row.row_index)
 
 
-def _is_cancelled(cancel_token: Optional[object]) -> bool:
+def _is_cancelled(cancel_token: object | None) -> bool:
     if cancel_token is None:
         return False
     if callable(cancel_token):

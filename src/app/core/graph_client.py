@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 import random
 import time
-from typing import Any, Callable, Mapping
+from typing import Any
 from urllib.parse import quote
 
 import requests

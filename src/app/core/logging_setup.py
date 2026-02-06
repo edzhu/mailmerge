@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from datetime import date, datetime, timezone
 import json
 import logging
 from pathlib import Path
 import re
-from typing import Any, Callable, Mapping
+from typing import Any
 
 from app.core.errors import ConfigurationError
 

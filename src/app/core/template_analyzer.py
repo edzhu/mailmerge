@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 import re
-from typing import Any, List, Optional, Sequence, TYPE_CHECKING
 import zipfile
+from typing import Any, TYPE_CHECKING
 
 from app.core.canonicalize import canonicalize
 from app.core.errors import OptionalDependencyError, TemplateValidationError
@@ -28,7 +29,7 @@ _TOKEN_PATTERN = re.compile(r"«([^»]+)»")
 @dataclass(frozen=True)
 class _MergeField:
     name: str
-    format_hint: Optional[str]
+    format_hint: str | None
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,7 @@ class _FieldCandidate:
     key: str
     original_name: str
     source: str
-    format_hint: Optional[str]
+    format_hint: str | None
 
 
 @dataclass
@@ -114,9 +115,9 @@ def _load_lxml() -> Any:
     return etree
 
 
-def _extract_candidates(root: Any) -> tuple[List[_FieldCandidate], _MalformedFieldCounts]:
+def _extract_candidates(root: Any) -> tuple[list[_FieldCandidate], _MalformedFieldCounts]:
     """Extract merge field and token candidates from the document tree."""
-    candidates: List[_FieldCandidate] = []
+    candidates: list[_FieldCandidate] = []
     counts = _MalformedFieldCounts()
     for paragraph in root.xpath(".//w:p", namespaces=_NSMAP):
         candidates.extend(_extract_paragraph_candidates(paragraph, counts))
@@ -126,10 +127,10 @@ def _extract_candidates(root: Any) -> tuple[List[_FieldCandidate], _MalformedFie
 def _extract_paragraph_candidates(
     paragraph: Any,
     counts: _MalformedFieldCounts,
-) -> List[_FieldCandidate]:
-    events: List[_FieldCandidate] = []
-    instr_texts: List[str] = []
-    first_instr_position: Optional[int] = None
+) -> list[_FieldCandidate]:
+    events: list[_FieldCandidate] = []
+    instr_texts: list[str] = []
+    first_instr_position: int | None = None
 
     for element in paragraph.iter():
         if element.tag == f"{{{_WORD_NAMESPACE}}}instrText":
@@ -154,7 +155,7 @@ def _extract_paragraph_candidates(
 
     if instr_texts:
         joined_text = "".join(instr_texts)
-        joined_candidates: List[_FieldCandidate] = []
+        joined_candidates: list[_FieldCandidate] = []
         for merge_field in _parse_mergefields(joined_text):
             candidate = _candidate_from_mergefield(
                 merge_field,
@@ -185,15 +186,15 @@ def _extract_paragraph_candidates(
     return events
 
 
-def _extract_tokens(text: str) -> List[str]:
-    tokens: List[str] = []
+def _extract_tokens(text: str) -> list[str]:
+    tokens: list[str] = []
     for match in _TOKEN_PATTERN.finditer(text):
         tokens.append(match.group(1))
     return tokens
 
 
-def _parse_mergefields(text: str) -> List[_MergeField]:
-    results: List[_MergeField] = []
+def _parse_mergefields(text: str) -> list[_MergeField]:
+    results: list[_MergeField] = []
     if not text:
         return results
 
@@ -209,7 +210,7 @@ def _parse_mergefields(text: str) -> List[_MergeField]:
     return results
 
 
-def _extract_field_name(segment: str) -> tuple[Optional[str], str]:
+def _extract_field_name(segment: str) -> tuple[str | None, str]:
     remainder = segment.lstrip()
     if not remainder:
         return "", ""
@@ -232,7 +233,7 @@ def _extract_field_name(segment: str) -> tuple[Optional[str], str]:
     return name, remainder[match.end() :]
 
 
-def _extract_format_hint(remainder: str) -> Optional[str]:
+def _extract_format_hint(remainder: str) -> str | None:
     match = _FORMAT_SWITCH_PATTERN.search(remainder)
     if not match:
         return None
@@ -241,20 +242,12 @@ def _extract_format_hint(remainder: str) -> Optional[str]:
     return value or None
 
 
-def _candidate_from_mergefield(merge_field: _MergeField) -> Optional[_FieldCandidate]:
-    return _build_candidate(
-        merge_field.name,
-        source="mergefield",
-        format_hint=merge_field.format_hint,
-    )
-
-
 def _candidate_from_mergefield(
     merge_field: _MergeField,
     counts: _MalformedFieldCounts,
     *,
     count_malformed: bool,
-) -> Optional[_FieldCandidate]:
+) -> _FieldCandidate | None:
     return _build_candidate(
         merge_field.name,
         source="mergefield",
@@ -267,7 +260,7 @@ def _candidate_from_mergefield(
 def _candidate_from_token(
     token: str,
     counts: _MalformedFieldCounts,
-) -> Optional[_FieldCandidate]:
+) -> _FieldCandidate | None:
     return _build_candidate(
         token,
         source="token",
@@ -280,11 +273,11 @@ def _candidate_from_token(
 def _build_candidate(
     name: str,
     source: str,
-    format_hint: Optional[str],
+    format_hint: str | None,
     counts: _MalformedFieldCounts,
     *,
     count_malformed: bool,
-) -> Optional[_FieldCandidate]:
+) -> _FieldCandidate | None:
     cleaned = name.strip()
     if not cleaned:
         if count_malformed:
@@ -303,8 +296,8 @@ def _build_candidate(
     )
 
 
-def _merge_candidates(candidates: Sequence[_FieldCandidate]) -> List[FieldInfo]:
-    fields: List[FieldInfo] = []
+def _merge_candidates(candidates: Sequence[_FieldCandidate]) -> list[FieldInfo]:
+    fields: list[FieldInfo] = []
     fields_by_key: dict[str, FieldInfo] = {}
     for candidate in candidates:
         existing = fields_by_key.get(candidate.key)

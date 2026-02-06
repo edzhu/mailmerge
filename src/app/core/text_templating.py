@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Mapping
+from collections.abc import Mapping
 
 from app.core.canonicalize import canonicalize
 from app.core.merge_engine import format_value

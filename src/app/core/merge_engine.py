@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 import io
 import re
-from typing import Any, Mapping, Optional, TYPE_CHECKING
 import zipfile
+from typing import Any, TYPE_CHECKING
 
 from app.core.canonicalize import canonicalize
 from app.core.errors import MergeError, OptionalDependencyError
@@ -85,7 +86,7 @@ def merge_docx_bytes(
         raise MergeError("Unable to read .docx data.") from exc
 
 
-def _format_number(value: float | int, format_hint: Optional[str]) -> str:
+def _format_number(value: float | int, format_hint: str | None) -> str:
     if format_hint == "0.00":
         return f"{float(value):.2f}"
     if format_hint == "0":
@@ -102,7 +103,7 @@ def _format_number(value: float | int, format_hint: Optional[str]) -> str:
 def _build_replacement_map(
     template: TemplateInfo,
     row: RowData,
-    row_values: Optional[Mapping[str, object]] = None,
+    row_values: Mapping[str, object] | None = None,
 ) -> dict[str, str]:
     replacements: dict[str, str] = {}
     if row_values is None:
@@ -130,7 +131,7 @@ def _canonical_row_values(row: RowData) -> dict[str, object]:
     return values
 
 
-def _normalize_placeholder(text: Optional[str]) -> str:
+def _normalize_placeholder(text: str | None) -> str:
     if not text:
         return ""
     cleaned = text.strip()
@@ -180,12 +181,12 @@ def _serialize_document_xml(root: Any, etree: Any) -> bytes:
 @dataclass
 class _FieldContext:
     instr_text_parts: list[str] = field(default_factory=list)
-    mergefield_name: Optional[str] = None
-    format_hint: Optional[str] = None
+    mergefield_name: str | None = None
+    format_hint: str | None = None
     in_result: bool = False
     is_mergefield: bool = False
     result_nodes: list[Any] = field(default_factory=list)
-    replacement_value: Optional[str] = None
+    replacement_value: str | None = None
 
 
 def _replace_mergefields(
@@ -287,7 +288,7 @@ def _apply_mergefield_replacement(context: _FieldContext) -> None:
         node.text = ""
 
 
-def _parse_mergefield_instruction(text: str) -> tuple[Optional[str], Optional[str]]:
+def _parse_mergefield_instruction(text: str) -> tuple[str | None, str | None]:
     if not text:
         return None, None
     match = _MERGEFIELD_PATTERN.search(text)
@@ -301,7 +302,7 @@ def _parse_mergefield_instruction(text: str) -> tuple[Optional[str], Optional[st
     return field_name, format_hint
 
 
-def _extract_field_name(segment: str) -> tuple[Optional[str], str]:
+def _extract_field_name(segment: str) -> tuple[str | None, str]:
     remainder = segment.lstrip()
     if not remainder:
         return "", ""
@@ -324,7 +325,7 @@ def _extract_field_name(segment: str) -> tuple[Optional[str], str]:
     return name, remainder[match.end() :]
 
 
-def _extract_format_hint(remainder: str) -> Optional[str]:
+def _extract_format_hint(remainder: str) -> str | None:
     match = _FORMAT_SWITCH_PATTERN.search(remainder)
     if not match:
         return None
@@ -335,11 +336,11 @@ def _extract_format_hint(remainder: str) -> Optional[str]:
 
 def _resolve_mergefield_value(
     field_name: str,
-    format_hint: Optional[str],
+    format_hint: str | None,
     row_values: Mapping[str, object],
     replacements: Mapping[str, str],
     format_hints: Mapping[str, str],
-) -> Optional[str]:
+) -> str | None:
     canonical_name = canonicalize(field_name)
     if canonical_name:
         if canonical_name in row_values:

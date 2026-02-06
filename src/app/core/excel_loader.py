@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from numbers import Number
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from app.core.canonicalize import canonicalize
 from app.core.errors import ExcelValidationError, OptionalDependencyError
@@ -115,10 +116,10 @@ def _required_template_keys(template: TemplateInfo) -> set[str]:
     return required_keys
 
 
-def _template_fields_by_key(template: TemplateInfo) -> Dict[str, FieldInfo]:
+def _template_fields_by_key(template: TemplateInfo) -> dict[str, FieldInfo]:
     """Return template fields mapped by canonical key."""
 
-    fields: Dict[str, FieldInfo] = {}
+    fields: dict[str, FieldInfo] = {}
     for field in template.fields:
         key = canonicalize(field.key)
         if key and key not in fields:
@@ -128,7 +129,7 @@ def _template_fields_by_key(template: TemplateInfo) -> Dict[str, FieldInfo]:
 
 def _find_header_row(
     sheet: "Worksheet",
-) -> Optional[tuple[int, Sequence["ReadOnlyCell"]]]:
+) -> tuple[int, Sequence["ReadOnlyCell"]] | None:
     """Find the first candidate header row in the sheet."""
 
     for row in sheet.iter_rows(min_row=1, max_row=_HEADER_SCAN_LIMIT):
@@ -182,7 +183,7 @@ def _build_columns(
     return columns
 
 
-def _header_text(value: object) -> Optional[str]:
+def _header_text(value: object) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
@@ -203,7 +204,7 @@ def _extract_rows(sheet: "Worksheet", sheet_info: SheetInfo) -> list[RowData]:
         sheet.iter_rows(min_row=start_row, max_col=max_column),
         start=start_row,
     ):
-        values_by_key: Dict[str, CellValue] = {}
+        values_by_key: dict[str, CellValue] = {}
         has_data = False
         for column in sheet_info.columns:
             cell = row[column.index - 1] if column.index - 1 < len(row) else None

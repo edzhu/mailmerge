@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 import math
 from pathlib import Path
-from typing import Mapping, Sequence
 
 from app.core.canonicalize import canonicalize
 from app.core.errors import MailMergeError
