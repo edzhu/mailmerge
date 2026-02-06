@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +98,11 @@ def _stub_merger(
 
 def _stub_renderer(docx_bytes: bytes) -> str:
     return f"<p>{docx_bytes.decode('utf-8')}</p>"
+
+
+def _read_csv(path: Path) -> list[list[str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.reader(handle))
 
 
 def _build_config(tmp_path: Path, *, dry_run: bool = True) -> RunConfig:
@@ -282,6 +288,38 @@ def test_run_dir_writes_results_csv(tmp_path: Path) -> None:
 
     assert summary.run_dir == run_dir
     assert summary.results_csv_path == run_dir / "results.csv"
-    assert summary.results_csv_path is not None
-    assert summary.results_csv_path.exists()
+    assert run_dir.exists()
+
+    csv_path = summary.results_csv_path
+    assert csv_path is not None
+    assert csv_path.exists()
+
+    rows = _read_csv(csv_path)
+    assert rows, "results.csv should contain a header row and data rows."
+
+    header = rows[0]
+    expected_header = [
+        "row_index",
+        "to_email",
+        "status",
+        "error",
+        "identifier_序号",
+        "identifier_姓名",
+        "subject",
+    ]
+    assert (
+        header == expected_header
+    ), f"Expected header columns {expected_header!r}, got {header!r}."
+    assert len(rows) == 2, "results.csv should contain one header row plus one data row."
+
+    index_row = header.index("row_index")
+    index_email = header.index("to_email")
+    index_status = header.index("status")
+    index_subject = header.index("subject")
+
+    data_row = rows[1]
+    assert data_row[index_row] == "2"
+    assert data_row[index_email] == "ada@example.com"
+    assert data_row[index_status] == "success"
+    assert data_row[index_subject] == "Hello User 2"
 
