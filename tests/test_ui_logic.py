@@ -82,12 +82,14 @@ def test_run_controller_with_cancel_passes_token() -> None:
             run_config: RunConfig,
             on_progress: object | None = None,
             cancel_token: object | None = None,
+            run_dir: Path | None = None,
         ) -> str:
             self.calls.append(
                 {
                     "config": run_config,
                     "on_progress": on_progress,
                     "cancel_token": cancel_token,
+                    "run_dir": run_dir,
                 }
             )
             return "summary"
@@ -97,11 +99,14 @@ def test_run_controller_with_cancel_passes_token() -> None:
     def on_progress(_: object) -> None:
         return None
 
+    run_dir = Path("run-dir")
+
     result = run_controller_with_cancel(
         controller=stub,
         config=config,
         on_progress=on_progress,
         cancel_token=cancel_token,
+        run_dir=run_dir,
     )
 
     assert result == "summary"
@@ -110,5 +115,6 @@ def test_run_controller_with_cancel_passes_token() -> None:
             "config": config,
             "on_progress": on_progress,
             "cancel_token": cancel_token,
+            "run_dir": run_dir,
         }
     ]

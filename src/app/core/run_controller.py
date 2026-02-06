@@ -14,6 +14,7 @@ from app.core.graph_client import GraphClient
 from app.core.html_renderer import docx_bytes_to_html
 from app.core.merge_engine import merge_docx_bytes
 from app.core.models import RowData, RowResult, RunSummary, SheetInfo, TemplateInfo
+from app.core.reporting import write_results_csv
 from app.core.template_analyzer import analyze_template
 from app.core.text_templating import render_subject
 from app.core.validation import is_valid_email
@@ -126,6 +127,7 @@ class RunController:
         config: RunConfig,
         on_progress: Optional[ProgressCallback] = None,
         cancel_token: Optional[object] = None,
+        run_dir: Path | None = None,
     ) -> RunSummary:
         """Execute a mail-merge run and return a summary."""
         try:
@@ -188,14 +190,18 @@ class RunController:
                 _emit_progress(on_progress, event, self._logger)
                 _write_audit_event(self._audit_writer, row, outcome, self._logger)
 
-            return RunSummary(
+            summary = RunSummary(
                 total_rows=total_rows,
                 success_count=success_count,
                 failure_count=failure_count,
                 results=results,
-                run_dir=None,
+                run_dir=run_dir,
                 results_csv_path=None,
             )
+            if run_dir is not None:
+                results_csv_path = write_results_csv(run_dir, summary)
+                summary = replace(summary, results_csv_path=results_csv_path)
+            return summary
         except MailMergeError:
             raise
         except Exception as exc:  # pragma: no cover - defensive guardrail

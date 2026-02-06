@@ -52,10 +52,12 @@ def run_controller_with_cancel(
     config: RunConfig,
     on_progress: Callable[[ProgressEvent], None] | None,
     cancel_token: threading.Event | None,
+    run_dir: Path | None = None,
 ) -> RunSummary:
     """Execute the controller while preserving the cancel-token wiring."""
     return controller.run(
         config,
         on_progress=on_progress,
         cancel_token=cancel_token,
+        run_dir=run_dir,
     )

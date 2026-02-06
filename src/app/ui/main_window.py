@@ -154,6 +154,7 @@ class _RunWorker(QRunnable):
                 config=self._config,
                 on_progress=self._emit_progress,
                 cancel_token=self._cancel_token,
+                run_dir=run_dir,
             )
         except MailMergeError as exc:
             self.signals.error.emit(str(exc))

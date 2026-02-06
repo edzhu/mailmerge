@@ -265,3 +265,23 @@ def test_missing_recipient_marks_failure(tmp_path: Path, email: str | None) -> N
     assert summary.results[1].success is False
     assert summary.results[1].error is not None
     assert "Missing recipient" in str(summary.results[1].error)
+
+
+def test_run_dir_writes_results_csv(tmp_path: Path) -> None:
+    template_info = _build_template_info()
+    sheet_info = _build_sheet_info()
+    rows = _build_rows(["ada@example.com"])
+    graph_factory = StubGraphClientFactory()
+    controller = _build_controller(rows, sheet_info, template_info, graph_factory)
+    run_dir = tmp_path / "run-output"
+
+    summary = controller.run(
+        _build_config(tmp_path, dry_run=True),
+        run_dir=run_dir,
+    )
+
+    assert summary.run_dir == run_dir
+    assert summary.results_csv_path == run_dir / "results.csv"
+    assert summary.results_csv_path is not None
+    assert summary.results_csv_path.exists()
+
