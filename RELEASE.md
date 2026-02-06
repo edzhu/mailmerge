@@ -12,7 +12,7 @@
 - `pip` (bundled with Python).
 - Windows: PowerShell.
 
-Note on GUI dependencies (PyInstaller analysis): the build scripts only install the `.[build]` extra. If PyInstaller errors mention missing Qt/PySide6, or the GUI fails to launch, rebuild using `.[build,gui]` (see the build sections for exact commands).
+Note on GUI dependencies (PyInstaller analysis): the build scripts install the `.[build,gui]` extras (PyInstaller + PySide6). If PyInstaller errors mention missing Qt/PySide6, or the GUI fails to launch, recreate the virtual environment using the same extras (see the build sections for exact commands).
 
 ## 3) Pick the source revision
 ```bash
