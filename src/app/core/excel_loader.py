@@ -50,6 +50,10 @@ def load_matching_sheet(
                     header_row_index=header_row_index,
                 )
                 rows = _extract_rows(sheet, sheet_info)
+                if rows is None:
+                    rows = []
+                if len(rows) == 0:
+                    raise ExcelValidationError("No data rows found.")
                 return sheet_info, rows
         raise ExcelValidationError("No sheet contains all required template fields")
     finally:
