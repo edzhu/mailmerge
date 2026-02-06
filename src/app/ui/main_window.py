@@ -32,6 +32,7 @@ from app.ui.run_logic import (
     is_from_email_valid,
     run_controller_with_cancel,
 )
+from app.ui.to_column_logic import choose_to_columns
 from app.ui.preview_dialog import PreviewDialog
 
 
@@ -396,12 +397,14 @@ class MainWindow(QMainWindow):
             return
         self._sheet_info = sheet_info
         self._loaded_rows = rows
-        self._populate_to_column(sheet_info)
+        warnings = self._populate_to_column(sheet_info, rows)
         self._set_to_column_enabled(True)
-        self.statusBar().showMessage(
-            f"Loaded '{sheet_info.name}' with {len(rows)} rows.",
-            5000,
-        )
+        message = f"Loaded '{sheet_info.name}' with {len(rows)} rows."
+        duration = 5000
+        if warnings:
+            message = f"{message} {' '.join(warnings)}"
+            duration = 8000
+        self.statusBar().showMessage(message, duration)
         self._update_process_state()
 
     def _handle_excel_error(self, request_id: int, message: str) -> None:
@@ -415,14 +418,20 @@ class MainWindow(QMainWindow):
         self._show_error_dialog("Spreadsheet error", message)
         self._update_process_state()
 
-    def _populate_to_column(self, sheet_info: SheetInfo) -> None:
+    def _populate_to_column(
+        self,
+        sheet_info: SheetInfo,
+        rows: list[RowData],
+    ) -> list[str]:
+        columns, warnings = choose_to_columns(sheet_info, rows)
         self._to_column.blockSignals(True)
         self._to_column.clear()
         self._to_column.addItem("")
-        for column in sheet_info.columns:
+        for column in columns:
             self._to_column.addItem(column.header, column.key)
         self._to_column.setCurrentIndex(0)
         self._to_column.blockSignals(False)
+        return warnings
 
     def _selected_to_column_key(self) -> str:
         data = self._to_column.currentData()
