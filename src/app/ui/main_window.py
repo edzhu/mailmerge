@@ -35,6 +35,8 @@ from app.ui.run_logic import (
 from app.ui.to_column_logic import choose_to_columns
 from app.ui.preview_dialog import PreviewDialog
 
+_DEFAULT_SUBJECT_TEMPLATE = "薪酬单 {年份}年{月份}月 - {姓名}"
+
 
 class _TemplateAnalysisSignals(QObject):
     """Signals for template analysis tasks."""
@@ -201,6 +203,7 @@ class MainWindow(QMainWindow):
 
         self._subject_template = QLineEdit()
         self._subject_template.setPlaceholderText("Subject template")
+        self._subject_template.setText(_DEFAULT_SUBJECT_TEMPLATE)
 
         self._tenant_id = QLineEdit()
         self._client_id = QLineEdit()
@@ -384,6 +387,8 @@ class MainWindow(QMainWindow):
         self._template_info = info
         self._template_warnings = list(info.warnings)
         self._set_excel_controls_enabled(True)
+        if not self._subject_template.text().strip():
+            self._subject_template.setText(_DEFAULT_SUBJECT_TEMPLATE)
         message = f"Template '{info.template_name}' ready."
         duration = 5000
         if self._template_warnings:
