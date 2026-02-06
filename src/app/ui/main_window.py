@@ -712,6 +712,16 @@ class MainWindow(QMainWindow):
         )
         message_lines.append(f"Successes: {summary.success_count}")
         message_lines.append(f"Failures: {summary.failure_count}")
+        run_dir_text = (
+            str(summary.run_dir) if summary.run_dir is not None else "(not available)"
+        )
+        results_csv_text = (
+            str(summary.results_csv_path)
+            if summary.results_csv_path is not None
+            else "(not available)"
+        )
+        message_lines.append(f"Run folder: {run_dir_text}")
+        message_lines.append(f"Results CSV: {results_csv_text}")
 
         dialog = QMessageBox(self)
         dialog.setWindowTitle("Run summary")
