@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
 
 [project]
 name = "mailmerge"
@@ -26,8 +26,15 @@ preview = ["PySide6-QtWebEngine>=6.5.0"]
 mailmerge = "mailmerge.main:main"
 ui-app = "mailmerge.main:main"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[tool.hatch.build]
+exclude = [
+    "src/mailmerge.egg-info/**",
+    "core/**",
+    "docs/**",
+    "scripts/**",
+    "tests/**",
+    "ui/**",
+]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/mailmerge"]
