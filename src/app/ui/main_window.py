@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.core.errors import MailMergeError
+from app.core.errors import ExcelValidationError, MailMergeError
 from app.core.excel_loader import load_matching_sheet
 from app.core.logging_setup import AuditWriter, configure_logging, create_run_directory
 from app.core.models import RowData, SheetInfo, TemplateInfo
@@ -56,6 +56,36 @@ class _RunSignals(QObject):
     progress = Signal(object)
     finished = Signal(object)
     error = Signal(str)
+
+
+def _find_excel_validation_error(
+    exc: BaseException,
+) -> ExcelValidationError | None:
+    """Return the first ExcelValidationError in an exception chain."""
+
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ExcelValidationError):
+            return current
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def _format_excel_load_error(exc: BaseException) -> str:
+    """Format Excel load errors for user-facing dialogs."""
+
+    validation_error = _find_excel_validation_error(exc)
+    if validation_error is not None:
+        message = str(validation_error).strip()
+        if message:
+            return message
+    if isinstance(exc, MailMergeError):
+        message = str(exc).strip()
+        if message:
+            return message
+    return "Failed to load spreadsheet."
 
 
 class _TemplateAnalysisWorker(QRunnable):
@@ -93,10 +123,10 @@ class _ExcelLoadWorker(QRunnable):
         try:
             sheet_info, rows = load_matching_sheet(self._excel_path, self._template_info)
         except MailMergeError as exc:
-            self.signals.error.emit(str(exc))
+            self.signals.error.emit(_format_excel_load_error(exc))
             return
-        except Exception:
-            self.signals.error.emit("Failed to load spreadsheet.")
+        except Exception as exc:
+            self.signals.error.emit(_format_excel_load_error(exc))
             return
         self.signals.finished.emit(sheet_info, rows)
 
