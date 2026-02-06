@@ -176,6 +176,9 @@ class MainWindow(QMainWindow):
         self._template_request_id = 0
         self._excel_request_id = 0
         self._template_info: TemplateInfo | None = None
+        self._template_warnings: list[str] = []
+        self._template_warning_dialog_request_id: int | None = None
+        self._template_warning_dialog: QMessageBox | None = None
         self._sheet_info: SheetInfo | None = None
         self._loaded_rows: list[RowData] = []
         self._sheet_warnings: list[str] = []
@@ -313,6 +316,19 @@ class MainWindow(QMainWindow):
         self._set_to_column_enabled(False)
         self._set_excel_controls_enabled(False)
 
+    def _clear_template_warnings(self) -> None:
+        self._template_warnings = []
+        self._template_warning_dialog_request_id = None
+        self._dismiss_template_warning_dialog()
+
+    def _dismiss_template_warning_dialog(self) -> None:
+        if self._template_warning_dialog is None:
+            return
+        dialog = self._template_warning_dialog
+        self._template_warning_dialog = None
+        dialog.close()
+        dialog.deleteLater()
+
     def _pick_template(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -338,6 +354,7 @@ class MainWindow(QMainWindow):
         request_id = self._template_request_id
         self._template_info = None
         self._reset_excel_state()
+        self._clear_template_warnings()
 
         template_value = value.strip()
         if not template_value:
@@ -365,17 +382,24 @@ class MainWindow(QMainWindow):
         if request_id != self._template_request_id:
             return
         self._template_info = info
+        self._template_warnings = list(info.warnings)
         self._set_excel_controls_enabled(True)
-        self.statusBar().showMessage(
-            f"Template '{info.template_name}' ready.",
-            5000,
-        )
+        message = f"Template '{info.template_name}' ready."
+        duration = 5000
+        if self._template_warnings:
+            message = f"{message} {' '.join(self._template_warnings)}"
+            duration = 8000
+            if self._template_warning_dialog_request_id != request_id:
+                self._template_warning_dialog_request_id = request_id
+                self._show_template_warning_dialog(self._template_warnings)
+        self.statusBar().showMessage(message, duration)
         self._update_process_state()
 
     def _handle_template_error(self, request_id: int, message: str) -> None:
         if request_id != self._template_request_id:
             return
         self._template_info = None
+        self._clear_template_warnings()
         self._reset_excel_state()
         self.statusBar().showMessage("Template analysis failed.", 8000)
         self._show_error_dialog("Template error", message)
@@ -697,6 +721,26 @@ class MainWindow(QMainWindow):
             error_text = str(result.error) if result.error else "Unknown error"
             failures.append(f"Row {result.row.row_index}: {error_text}")
         return "\n".join(failures)
+
+    def _show_template_warning_dialog(self, warnings: list[str]) -> None:
+        if not warnings:
+            return
+        self._dismiss_template_warning_dialog()
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("Template warnings")
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setText("\n".join(warnings))
+        dialog.setStandardButtons(QMessageBox.Ok)
+        dialog.setModal(False)
+        dialog.finished.connect(self._on_template_warning_dialog_finished)
+        self._template_warning_dialog = dialog
+        dialog.open()
+
+    def _on_template_warning_dialog_finished(self, _result: int) -> None:
+        dialog = self._template_warning_dialog
+        self._template_warning_dialog = None
+        if dialog is not None:
+            dialog.deleteLater()
 
     def _show_error_dialog(self, title: str, message: str) -> None:
         QMessageBox.warning(self, title, message)
