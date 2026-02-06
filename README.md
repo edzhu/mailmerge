@@ -154,30 +154,8 @@ pytest -q
 Tests are designed to run offline without network calls.
 
 ## Packaging/building executables
-The helper scripts create a fresh `.venv`, install the `.[build]` extra (PyInstaller),
-and package `src/mailmerge/main.py` as a one-file GUI app.
-
-### macOS
-```bash
-bash scripts/build_macos.sh
-```
-This produces `dist/UIApp` (and associated PyInstaller build artifacts under `build/`).
-
-### Windows (PowerShell)
-Run `scripts/build_windows.ps1` from PowerShell:
-```powershell
-\.\scripts\build_windows.ps1
-```
-This produces `dist\UIApp.exe` (and PyInstaller build artifacts under `build\`). If you
-hit an execution policy error, use
-`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` before running the script.
-
-Manual build (both platforms):
-```bash
-pip install -e ".[build]"
-pyinstaller --onefile --windowed --name UIApp src/mailmerge/main.py
-```
-The output executable appears in `dist/` (macOS) or `dist\UIApp.exe` (Windows).
+See [RELEASE.md](RELEASE.md) for the step-by-step macOS/Windows packaging guide and
+artifact details.
 
 ## Security notes
 - Do **not** commit tenant IDs, client IDs, or client secrets to source control. Treat the
