@@ -58,3 +58,19 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mailmerge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
+[tool.black]
+target-version = ["py39"]
+line-length = 88
+
+[tool.mypy]
+python_version = "3.9"
