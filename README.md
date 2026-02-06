@@ -17,6 +17,9 @@ Keep secrets out of the repository. If you add integrations that require credent
 provide them via environment variables (for example, `export APP_SECRET="..."`) and
 avoid committing them to source control.
 
+## Development guidelines
+See [Python coding guideline](docs/python_coding_guideline.md).
+
 ## Running the CLI (dry-run)
 The default CLI path is a dry-run that prints a status message and exits.
 ```bash
