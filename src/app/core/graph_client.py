@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+import random
 import time
 from typing import Any, Callable, Mapping
 from urllib.parse import quote
@@ -16,12 +17,20 @@ _DEFAULT_SCOPE = "https://graph.microsoft.com/.default"
 _DEFAULT_GRAPH_BASE_URL = "https://graph.microsoft.com"
 _DEFAULT_TOKEN_REFRESH_BUFFER = timedelta(seconds=120)
 _DEFAULT_TIMEOUT = 10.0
-_DEFAULT_MAX_RETRIES = 2
+_DEFAULT_MAX_RETRIES = 4
 _DEFAULT_RETRY_BACKOFF_BASE = 0.5
+_DEFAULT_RETRY_JITTER_MIN = 0.8
+_DEFAULT_RETRY_JITTER_MAX = 1.2
 _RESPONSE_SNIPPET_LIMIT = 200
 
 Clock = Callable[[], datetime]
 Sleeper = Callable[[float], None]
+RetryJitter = Callable[[float], float]
+
+
+def _default_retry_jitter(delay: float) -> float:
+    jitter_factor = random.uniform(_DEFAULT_RETRY_JITTER_MIN, _DEFAULT_RETRY_JITTER_MAX)
+    return delay * jitter_factor
 
 
 def _load_msal() -> Any:
@@ -53,6 +62,7 @@ class GraphClient:
         timeout: float = _DEFAULT_TIMEOUT,
         max_retries: int = _DEFAULT_MAX_RETRIES,
         retry_backoff_base: float = _DEFAULT_RETRY_BACKOFF_BASE,
+        retry_jitter: RetryJitter | None = _default_retry_jitter,
         sleeper: Sleeper | None = None,
     ) -> None:
         """Initialize the Graph client."""
@@ -88,6 +98,7 @@ class GraphClient:
         self._timeout = timeout
         self._max_retries = max_retries
         self._retry_backoff_base = retry_backoff_base
+        self._retry_jitter = retry_jitter
         self._msal_app = msal_app or self._build_msal_app()
 
         self._access_token: str | None = None
@@ -239,7 +250,10 @@ class GraphClient:
         retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
         if retry_after is not None:
             return retry_after
-        return self._retry_backoff_base * (2**attempt)
+        delay = self._retry_backoff_base * (2**attempt)
+        if self._retry_jitter is None:
+            return delay
+        return max(self._retry_jitter(delay), 0.0)
 
     def _parse_retry_after(self, value: str | None) -> float | None:
         if not value:

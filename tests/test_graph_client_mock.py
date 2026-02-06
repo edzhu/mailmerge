@@ -178,6 +178,57 @@ def test_send_mail_retries_on_429_then_succeeds() -> None:
     assert len(sleeper_calls) == 1
 
 
+def test_retry_delay_applies_jitter_when_no_retry_after() -> None:
+    response = make_response(503, text_body="service unavailable")
+    jitter_values = iter([0.9, 1.1])
+
+    def jitter(delay: float) -> float:
+        return delay * next(jitter_values)
+
+    client = GraphClient(
+        "tenant",
+        "client",
+        "secret",
+        session=DummySession([]),
+        msal_app=DummyMsalApp(),
+        clock=fixed_clock,
+        retry_backoff_base=1.0,
+        retry_jitter=jitter,
+        sleeper=lambda _: None,
+    )
+
+    first_delay = client._retry_delay_seconds(response, 0)
+    second_delay = client._retry_delay_seconds(response, 0)
+
+    assert first_delay == pytest.approx(0.9)
+    assert second_delay == pytest.approx(1.1)
+    assert first_delay != second_delay
+
+
+def test_retry_delay_honors_retry_after_without_jitter() -> None:
+    response = make_response(
+        503,
+        text_body="service unavailable",
+        headers={"Retry-After": "3"},
+    )
+
+    def jitter(_: float) -> float:
+        raise AssertionError("jitter should not run when Retry-After is set")
+
+    client = GraphClient(
+        "tenant",
+        "client",
+        "secret",
+        session=DummySession([]),
+        msal_app=DummyMsalApp(),
+        clock=fixed_clock,
+        retry_jitter=jitter,
+        sleeper=lambda _: None,
+    )
+
+    assert client._retry_delay_seconds(response, 0) == 3.0
+
+
 def test_send_mail_raises_on_400_without_retry() -> None:
     session = DummySession([make_response(400, text_body="bad request")])
     client = GraphClient(
