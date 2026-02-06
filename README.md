@@ -10,7 +10,6 @@ python -m venv .venv
 source .venv/bin/activate
 # Windows PowerShell
 # .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
 pip install -e .
 ```
 Keep secrets out of the repository. If you add integrations that require credentials,
@@ -28,11 +27,11 @@ python -m mailmerge.main
 
 ## Running the GUI (optional, requires PySide6)
 ```bash
-pip install ".[gui]"
+pip install -e ".[gui]"
 # Optional: enable the richer HTML preview.
-pip install ".[preview]"
+pip install -e ".[preview]"
 # Or install both in one step:
-# pip install ".[gui,preview]"
+# pip install -e ".[gui,preview]"
 python -m mailmerge.main --gui
 ```
 If PySide6 is not installed, the CLI will report the missing dependency and exit.
@@ -41,19 +40,21 @@ browser view.
 
 ## Offline-safe testing
 ```bash
+pip install -e ".[test]"
 pytest -q
 ```
 Tests are expected to run without network access; avoid adding tests that call out
 to external services.
 
 ## Packaging (PyInstaller)
-Use the helper scripts, which create a virtual environment, install dependencies,
+Use the helper scripts, which create a virtual environment, install the build extra,
 and run PyInstaller:
 - `scripts/build_macos.sh`
 - `scripts/build_windows.ps1`
 
 Manual command (both platforms):
 ```bash
+pip install -e ".[build]"
 pyinstaller --onefile --windowed --name UIApp src/mailmerge/main.py
 ```
 The output executable will be in `dist/` (macOS) or `dist\UIApp.exe` (Windows).
