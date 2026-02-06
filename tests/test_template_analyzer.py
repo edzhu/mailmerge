@@ -87,3 +87,20 @@ def test_template_validation_error_when_no_fields(tmp_path: Path) -> None:
 
     with pytest.raises(TemplateValidationError):
         analyze_template(docx_path)
+
+
+def test_malformed_mergefield_name_warning(tmp_path: Path) -> None:
+    body = (
+        "<w:p>"
+        "<w:r><w:instrText xml:space=\"preserve\">MERGEFIELD </w:instrText></w:r>"
+        "<w:r><w:instrText>MERGEFIELD 姓名</w:instrText></w:r>"
+        "</w:p>"
+    )
+    docx_path = _write_docx(tmp_path / "malformed.docx", body)
+
+    info = analyze_template(docx_path)
+
+    assert [field.key for field in info.fields] == ["姓名"]
+    assert info.warnings == [
+        "Ignored 1 malformed merge fields with empty names.",
+    ]
