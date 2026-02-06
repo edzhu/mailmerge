@@ -58,6 +58,18 @@ def _write_workbook_without_match(path: Path) -> Path:
     return path
 
 
+def _write_workbook_with_headers_only(path: Path) -> Path:
+    workbook = openpyxl.Workbook()
+    data_sheet = workbook.active
+    data_sheet.title = "Mail Merge Data"
+    data_sheet.append(["Full Name", "Email Address"])
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    workbook.save(path)
+    workbook.close()
+    return path
+
+
 def test_load_matching_sheet_selects_sheet_and_rows(tmp_path: Path) -> None:
     template = _build_template()
     excel_path = _write_workbook_with_match(tmp_path / "data.xlsx")
@@ -85,3 +97,13 @@ def test_load_matching_sheet_raises_when_no_match(tmp_path: Path) -> None:
 
     with pytest.raises(ExcelValidationError):
         load_matching_sheet(excel_path, template)
+
+
+def test_load_matching_sheet_raises_when_no_data_rows(tmp_path: Path) -> None:
+    template = _build_template()
+    excel_path = _write_workbook_with_headers_only(tmp_path / "empty.xlsx")
+
+    with pytest.raises(ExcelValidationError) as excinfo:
+        load_matching_sheet(excel_path, template)
+
+    assert str(excinfo.value) == "No data rows found."
