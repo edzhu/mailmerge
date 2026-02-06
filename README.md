@@ -50,7 +50,9 @@ The GUI lives under `mailmerge.ui`:
 For more detail, see [docs/design.md](docs/design.md).
 
 ## Install & setup
-Prerequisites: Python 3.9+ (3.11 recommended).
+Prerequisites:
+- Python 3.9+ (3.11 recommended to match current development defaults).
+- `pip` (bundled with Python).
 
 ### macOS
 ```bash
@@ -60,15 +62,18 @@ pip install -e .
 pip install -e ".[gui]"     # PySide6 GUI
 pip install -e ".[preview]" # optional QtWebEngine HTML preview
 ```
+Skip the `preview` extra if you do not need the embedded HTML preview window.
 
 ### Windows (PowerShell)
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
-pip install -e ".[gui]"
-pip install -e ".[preview]"
+pip install -e '.[gui]'
+pip install -e '.[preview]'
 ```
+If PowerShell blocks activation, run
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in that shell and retry.
 
 Optional extras:
 - `.[test]` for pytest
@@ -125,9 +130,22 @@ pytest -q
 Tests are designed to run offline without network calls.
 
 ## Packaging/building executables
-Use the helper scripts to create a build venv and run PyInstaller:
-- `scripts/build_macos.sh`
-- `scripts/build_windows.ps1`
+The helper scripts create a fresh `.venv`, install the `.[build]` extra (PyInstaller),
+and package `src/mailmerge/main.py` as a one-file GUI app.
+
+### macOS
+```bash
+bash scripts/build_macos.sh
+```
+This produces `dist/UIApp` (and associated PyInstaller build artifacts under `build/`).
+
+### Windows (PowerShell)
+```powershell
+\.\scripts\build_windows.ps1
+```
+This produces `dist\UIApp.exe` (and PyInstaller build artifacts under `build\`). If you
+hit an execution policy error, use
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` before running the script.
 
 Manual build (both platforms):
 ```bash
