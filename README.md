@@ -82,45 +82,69 @@ Optional extras:
 Development guidelines: see [docs/python_coding_guideline.md](docs/python_coding_guideline.md).
 
 ## Usage
-### CLI (dry-run scaffold)
+### CLI (status-only scaffold)
 ```bash
-python -m mailmerge.main
-# or, after installation:
 mailmerge
+python -m mailmerge.main
 ```
 This prints a status message and exits. Use `--gui` to launch the desktop app.
 
-### GUI workflow
+### Launching the GUI
 ```bash
-python -m mailmerge.main --gui
-# or:
 mailmerge --gui
+# or, from a development checkout:
+python -m mailmerge.main --gui
 ```
 
-1. Select a Word `.docx` template containing MERGEFIELD fields or `«token»` placeholders.
-2. Select an Excel `.xlsx` file with a header row matching the template fields.
-3. Choose the recipient ("To") column suggested by the UI.
-4. Enter a subject template (tokens use `{Column Header}` syntax, e.g. `{姓名}` or
-   `{First Name}`).
-5. Enter the sender address and Microsoft Graph credentials.
-6. Click **Preview** to render a single row without sending, or **Process** to send all
-   rows.
+### GUI walkthrough
+1. Select a Word `.docx` template. The app scans for MERGEFIELD codes and `«token»`
+   placeholders and surfaces any template warnings.
+2. Select an Excel `.xlsx` file. The loader scans worksheets in workbook order, finds the
+   first sheet whose header row contains all required template fields (after
+   canonicalization), and loads the rows beneath that header.
+3. Choose the recipient ("To") column. Columns that look like email addresses are
+   auto-suggested; if none are detected, the dropdown lists all columns and shows a
+   warning.
+4. Enter the **From** email address.
+5. Enter the **Tenant ID**, **Client ID**, and **Client Secret** for Microsoft Graph.
+6. Optionally adjust the subject template. Tokens use `{字段}` syntax, for example:
+   `薪酬单 {年份}年{月份}月 - {姓名}`.
+7. Click **Preview** to render a single row without sending, then click **Process** to send
+   all rows.
 
-Each run creates a timestamped directory under `~/MailMergeRuns/` (your home directory)
-with `run.log`, `audit.jsonl`, and `results.csv`.
+### Outputs / artifacts
+Each **Process** run creates a timestamped directory under `~/MailMergeRuns/` (e.g.,
+`~/MailMergeRuns/20240206-153045`; a suffix like `-01` is added if the timestamp already
+exists). The run folder typically contains:
+- `run.log` — end-to-end log output (console + file).
+- `audit.jsonl` — per-row audit events with timestamps and status.
+- `results.csv` — summary of row outcomes (recipient, status, and optional
+  subject/request IDs).
+
+### Examples
+**Subject template:** `薪酬单 {年份}年{月份}月 - {姓名}`
+
+**Header/field matching (canonicalization):** fields and headers are normalized with
+Unicode NFKC, guillemet removal, and removal of spaces (ASCII + full-width), underscores,
+slashes, colons, hyphens, and em dashes. Examples:
+- Word field `事假未到职` matches Excel header `事假/未到职`.
+- Word field `备__注` matches Excel header `备  注`.
 
 ## Microsoft 365/Outlook (Graph) credentials setup
 The app uses the Microsoft Graph **client credentials** flow, which requires an app
 registration with **application** permissions.
 
-1. In the Microsoft Entra admin center (Azure portal), register a new application.
-2. Copy the **Application (client) ID** and **Directory (tenant) ID**.
-3. Create a **client secret** under *Certificates & secrets* and store it securely.
-4. Add **Microsoft Graph → Application permissions → Mail.Send** and grant admin consent.
-5. Ensure the `from_email` address is a mailbox in the tenant. For shared mailboxes,
-   grant the sender appropriate *Send As* rights.
+Checklist:
+1. In the Microsoft Entra admin center (Azure portal), create a new **App registration**.
+2. Record the **Directory (tenant) ID** and **Application (client) ID**.
+3. Under **Certificates & secrets**, create a **client secret** and copy the value.
+4. Under **API permissions**, add **Microsoft Graph → Application permissions → Mail.Send**.
+5. Click **Grant admin consent** for your tenant.
+6. Confirm the **From** mailbox exists in the tenant (user or shared mailbox). If you use
+   Exchange Online application access policies, allow this app to access the mailbox.
 
-Use the tenant ID, client ID, and client secret in the GUI.
+Use the tenant ID, client ID, and client secret in the GUI. For broader context on the
+Graph flow and mailbox expectations, see [docs/design.md](docs/design.md).
 
 ## Testing
 ```bash
@@ -140,6 +164,7 @@ bash scripts/build_macos.sh
 This produces `dist/UIApp` (and associated PyInstaller build artifacts under `build/`).
 
 ### Windows (PowerShell)
+Run `scripts/build_windows.ps1` from PowerShell:
 ```powershell
 \.\scripts\build_windows.ps1
 ```
@@ -155,8 +180,10 @@ pyinstaller --onefile --windowed --name UIApp src/mailmerge/main.py
 The output executable appears in `dist/` (macOS) or `dist\UIApp.exe` (Windows).
 
 ## Security notes
-- Treat the client secret as a password. Do not commit it or paste it into logs.
+- Do **not** commit tenant IDs, client IDs, or client secrets to source control. Treat the
+  client secret like a password and rotate it if it is exposed.
 - Run artifacts include recipient addresses and subjects; store `MailMergeRuns/`
   in a protected location and delete runs you no longer need.
-- The logging layer redacts fields named `client_secret`, but you should still keep
-  credentials out of screenshots, terminals, and support bundles.
+- The logging layer redacts values for keys named `client_secret` (and common
+  `client_secret=...` patterns), but you should still keep credentials out of
+  screenshots, terminals, and support bundles.
