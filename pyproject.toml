@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ui-app"
+name = "mailmerge"
 version = "0.1.0"
 description = "Minimal UI app scaffold for macOS and Windows executables"
 readme = "README.md"
@@ -23,7 +23,8 @@ gui = ["PySide6>=6.5.0"]
 preview = ["PySide6-QtWebEngine>=6.5.0"]
 
 [project.scripts]
-ui-app = "app.main:main"
+mailmerge = "mailmerge.main:main"
+ui-app = "mailmerge.main:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
