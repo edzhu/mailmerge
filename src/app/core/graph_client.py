@@ -132,7 +132,11 @@ class GraphClient:
             headers=headers,
         )
         if 200 <= response.status_code < 300:
-            return self._parse_json_response(response)
+            payload_data = self._parse_json_response(response)
+            metadata = self._request_metadata(response)
+            if not payload_data:
+                return metadata
+            return {**payload_data, **metadata}
         self._raise_http_error(response)
         return {}
 
@@ -272,6 +276,24 @@ class GraphClient:
         if isinstance(payload, dict):
             return payload
         return {"data": payload}
+
+    def _request_metadata(self, response: requests.Response) -> dict[str, Any]:
+        """Extract request identifiers and status code from a response."""
+        return {
+            "request_id": self._normalize_header_value(
+                response.headers.get("request-id")
+            ),
+            "client_request_id": self._normalize_header_value(
+                response.headers.get("client-request-id")
+            ),
+            "status_code": response.status_code,
+        }
+
+    def _normalize_header_value(self, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
 
     def _raise_http_error(self, response: requests.Response) -> None:
         snippet = self._response_snippet(response)

@@ -69,7 +69,14 @@ def make_response(
 
 
 def test_send_mail_success_includes_authorization_header() -> None:
-    session = DummySession([make_response(202)])
+    session = DummySession(
+        [
+            make_response(
+                202,
+                headers={"request-id": "req-123", "client-request-id": "client-456"},
+            )
+        ]
+    )
     client = GraphClient(
         "tenant",
         "client",
@@ -87,7 +94,11 @@ def test_send_mail_success_includes_authorization_header() -> None:
         "<p>Body</p>",
     )
 
-    assert result == {}
+    assert result == {
+        "request_id": "req-123",
+        "client_request_id": "client-456",
+        "status_code": 202,
+    }
     assert len(session.calls) == 1
     call = session.calls[0]
     assert call["headers"]["Authorization"] == "Bearer token-123"
@@ -101,7 +112,7 @@ def test_send_mail_retries_on_429_then_succeeds() -> None:
     session = DummySession(
         [
             make_response(429, text_body="busy", headers={"Retry-After": "0"}),
-            make_response(202),
+            make_response(202, headers={"request-id": "req-789"}),
         ]
     )
     sleeper_calls: list[float] = []
@@ -127,7 +138,9 @@ def test_send_mail_retries_on_429_then_succeeds() -> None:
         "<p>Body</p>",
     )
 
-    assert result == {}
+    assert result["status_code"] == 202
+    assert result["request_id"] == "req-789"
+    assert result["client_request_id"] is None
     assert len(session.calls) == 2
     assert len(sleeper_calls) == 1
 
