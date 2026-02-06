@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from app.core.models import RowResult
+from mailmerge.core.models import RowResult
 
 _EMPTY_BODY_MESSAGE = "No HTML output generated."
 

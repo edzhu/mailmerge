@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from app.core.errors import ConfigurationError
+from mailmerge.core.errors import ConfigurationError
 
 Clock = Callable[[], datetime]
 

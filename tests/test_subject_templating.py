@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.core.models import RowData
-from app.core.text_templating import render_subject
+from mailmerge.core.models import RowData
+from mailmerge.core.text_templating import render_subject
 
 
 def _make_row() -> RowData:

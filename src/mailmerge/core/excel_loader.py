@@ -8,9 +8,9 @@ from numbers import Number
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
-from app.core.canonicalize import canonicalize
-from app.core.errors import ExcelValidationError, OptionalDependencyError
-from app.core.models import (
+from mailmerge.core.canonicalize import canonicalize
+from mailmerge.core.errors import ExcelValidationError, OptionalDependencyError
+from mailmerge.core.models import (
     CellValue,
     ColumnInfo,
     FieldInfo,

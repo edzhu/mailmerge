@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.core.logging_setup import (
+from mailmerge.core.logging_setup import (
     AuditWriter,
     configure_logging,
     create_run_directory,

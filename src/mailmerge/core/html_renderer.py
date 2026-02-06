@@ -5,7 +5,7 @@ from __future__ import annotations
 from io import BytesIO
 from typing import Any
 
-from app.core.errors import OptionalDependencyError, RenderError
+from mailmerge.core.errors import OptionalDependencyError, RenderError
 
 _OUTLOOK_CSS = (
     "body {\n"

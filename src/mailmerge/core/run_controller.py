@@ -9,17 +9,17 @@ import math
 from pathlib import Path
 from typing import Any, Protocol
 
-from app.core.canonicalize import canonicalize
-from app.core.errors import ConfigurationError, MailMergeError, TemplateValidationError
-from app.core.excel_loader import load_matching_sheet
-from app.core.graph_client import GraphClient
-from app.core.html_renderer import docx_bytes_to_html
-from app.core.merge_engine import merge_docx_bytes
-from app.core.models import RowData, RowResult, RunSummary, SheetInfo, TemplateInfo
-from app.core.reporting import write_results_csv
-from app.core.template_analyzer import analyze_template
-from app.core.text_templating import render_subject
-from app.core.validation import is_valid_email
+from mailmerge.core.canonicalize import canonicalize
+from mailmerge.core.errors import ConfigurationError, MailMergeError, TemplateValidationError
+from mailmerge.core.excel_loader import load_matching_sheet
+from mailmerge.core.graph_client import GraphClient
+from mailmerge.core.html_renderer import docx_bytes_to_html
+from mailmerge.core.merge_engine import merge_docx_bytes
+from mailmerge.core.models import RowData, RowResult, RunSummary, SheetInfo, TemplateInfo
+from mailmerge.core.reporting import write_results_csv
+from mailmerge.core.template_analyzer import analyze_template
+from mailmerge.core.text_templating import render_subject
+from mailmerge.core.validation import is_valid_email
 
 
 class GraphClientProtocol(Protocol):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.validation import is_valid_email
+from mailmerge.core.validation import is_valid_email
 
 
 VALID_EMAILS = [

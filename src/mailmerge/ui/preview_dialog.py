@@ -20,11 +20,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.core.canonicalize import canonicalize
-from app.core.models import RowData, RowResult, SheetInfo, TemplateInfo
-from app.core.run_controller import RunConfig, RunController
-from app.ui.preview_logic import apply_preview_result_to_viewer
-from app.ui.worker import ControllerWorker
+from mailmerge.core.canonicalize import canonicalize
+from mailmerge.core.models import RowData, RowResult, SheetInfo, TemplateInfo
+from mailmerge.core.run_controller import RunConfig, RunController
+from mailmerge.ui.preview_logic import apply_preview_result_to_viewer
+from mailmerge.ui.worker import ControllerWorker
 
 _IDENTIFIER_LABELS = ("序号", "姓名")
 

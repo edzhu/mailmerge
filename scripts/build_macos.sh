@@ -6,6 +6,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
 
-pyinstaller --onefile --windowed --name UIApp src/app/main.py
+pyinstaller --onefile --windowed --name UIApp src/mailmerge/main.py
 
 echo "Build complete. See dist/UIApp"

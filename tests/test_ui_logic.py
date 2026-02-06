@@ -6,9 +6,9 @@ from pathlib import Path
 import threading
 from typing import Any
 
-from app.core.canonicalize import canonicalize
-from app.core.run_controller import RunConfig
-from app.ui.run_logic import (
+from mailmerge.core.canonicalize import canonicalize
+from mailmerge.core.run_controller import RunConfig
+from mailmerge.ui.run_logic import (
     build_run_config_from_inputs,
     is_from_email_valid,
     run_controller_with_cancel,
@@ -22,7 +22,7 @@ def test_from_email_validation_delegates_to_core(monkeypatch: Any) -> None:
         calls.append(value)
         return True
 
-    monkeypatch.setattr("app.core.validation.is_valid_email", fake_is_valid_email)
+    monkeypatch.setattr("mailmerge.core.validation.is_valid_email", fake_is_valid_email)
 
     assert is_from_email_valid(" user@example.com ") is True
     assert calls == [" user@example.com "]

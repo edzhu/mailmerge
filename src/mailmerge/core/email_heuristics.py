@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.core.models import CellValue, ColumnInfo, RowData, SheetInfo
-from app.core.validation import is_valid_email
+from mailmerge.core.models import CellValue, ColumnInfo, RowData, SheetInfo
+from mailmerge.core.validation import is_valid_email
 
 
 def detect_email_columns(

@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 import re
 
-from app.core.logging_setup import AuditWriter, configure_logging, create_run_directory
+from mailmerge.core.logging_setup import AuditWriter, configure_logging, create_run_directory
 
 
 _RUN_DIR_PATTERN = re.compile(r"^\d{8}-\d{6}(?:-\d{2})?$")

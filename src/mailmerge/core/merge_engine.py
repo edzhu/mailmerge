@@ -10,9 +10,9 @@ import re
 import zipfile
 from typing import Any, TYPE_CHECKING
 
-from app.core.canonicalize import canonicalize
-from app.core.errors import MergeError, OptionalDependencyError
-from app.core.models import RowData, TemplateInfo
+from mailmerge.core.canonicalize import canonicalize
+from mailmerge.core.errors import MergeError, OptionalDependencyError
+from mailmerge.core.models import RowData, TemplateInfo
 
 if TYPE_CHECKING:
     from lxml import etree

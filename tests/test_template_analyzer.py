@@ -7,8 +7,8 @@ import zipfile
 
 import pytest
 
-from app.core.errors import TemplateValidationError
-from app.core.template_analyzer import analyze_template
+from mailmerge.core.errors import TemplateValidationError
+from mailmerge.core.template_analyzer import analyze_template
 
 _WORD_NAMESPACE = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

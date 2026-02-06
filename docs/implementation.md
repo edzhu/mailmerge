@@ -4,7 +4,7 @@
 
 1. **Set the default subject template**
 
-   * File: `src/app/ui/main_window.py`
+   * File: `src/mailmerge/ui/main_window.py`
    * In `MainWindow.__init__` (or `_prime_state` equivalent), set:
 
      * `self._subject_template.setText("薪酬单 {年份}年{月份}月 - {姓名}")`
@@ -17,7 +17,7 @@
 
 2. **Show recipient in progress dialog**
 
-   * File: `src/app/ui/main_window.py`
+   * File: `src/mailmerge/ui/main_window.py`
    * Update `_on_run_progress(self, event: ProgressEvent)` to include recipient:
 
      * Label like: `Processing row {row_index} for {recipient} ({processed}/{total})`
@@ -35,9 +35,9 @@
 
    * Files:
 
-     * `src/app/core/run_controller.py`
-     * `src/app/core/reporting.py` (likely unchanged)
-     * `src/app/ui/main_window.py` (to display paths)
+     * `src/mailmerge/core/run_controller.py`
+     * `src/mailmerge/core/reporting.py` (likely unchanged)
+     * `src/mailmerge/ui/main_window.py` (to display paths)
 
 **Implementation steps**
 
@@ -55,7 +55,7 @@
 
 4. **Show artifact locations in the final summary dialog**
 
-   * File: `src/app/ui/main_window.py`
+   * File: `src/mailmerge/ui/main_window.py`
    * In `_show_summary_dialog(...)`, add lines like:
 
      * `Run folder: <path>`
@@ -74,7 +74,7 @@
 
 5. **Capture Graph request identifiers**
 
-   * File: `src/app/core/graph_client.py`
+   * File: `src/mailmerge/core/graph_client.py`
    * Modify `send_mail(...)` to return a dict that includes:
 
      * `request_id` (from response header `request-id` if present)
@@ -96,7 +96,7 @@
 
 6. **Record request id in audit events and row results**
 
-   * File: `src/app/core/run_controller.py`
+   * File: `src/mailmerge/core/run_controller.py`
    * Thread the returned metadata from `graph_client.send_mail(...)` into:
 
      * `RowResult` (either add a new field, or stash into error/message)
@@ -113,7 +113,7 @@
 
 7. **Replace MERGEFIELD complex field results**
 
-   * File: `src/app/core/merge_engine.py`
+   * File: `src/mailmerge/core/merge_engine.py`
 
 **Approach (practical v1):**
 
@@ -146,7 +146,7 @@
 
 9. **Add jitter to retry backoff**
 
-   * File: `src/app/core/graph_client.py`
+   * File: `src/mailmerge/core/graph_client.py`
    * In `_retry_delay_seconds`, apply jitter:
 
      * `delay = base * (2**attempt)`

@@ -23,7 +23,7 @@ See [Python coding guideline](docs/python_coding_guideline.md).
 ## Running the CLI (dry-run)
 The default CLI path is a dry-run that prints a status message and exits.
 ```bash
-python -m app.main
+python -m mailmerge.main
 ```
 
 ## Running the GUI (optional, requires PySide6)
@@ -33,7 +33,7 @@ pip install ".[gui]"
 pip install ".[preview]"
 # Or install both in one step:
 # pip install ".[gui,preview]"
-python -m app.main --gui
+python -m mailmerge.main --gui
 ```
 If PySide6 is not installed, the CLI will report the missing dependency and exit.
 If the QtWebEngine module is unavailable, the preview dialog falls back to the basic text
@@ -54,6 +54,6 @@ and run PyInstaller:
 
 Manual command (both platforms):
 ```bash
-pyinstaller --onefile --windowed --name UIApp src/app/main.py
+pyinstaller --onefile --windowed --name UIApp src/mailmerge/main.py
 ```
 The output executable will be in `dist/` (macOS) or `dist\UIApp.exe` (Windows).

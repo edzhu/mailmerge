@@ -5,6 +5,6 @@ python -m venv .venv
 pip install -r requirements.txt
 pip install -e .
 
-pyinstaller --onefile --windowed --name UIApp src/app/main.py
+pyinstaller --onefile --windowed --name UIApp src/mailmerge/main.py
 
 Write-Host "Build complete. See dist\UIApp.exe"

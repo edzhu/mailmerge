@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from app.core.text_templating import render_subject
+from mailmerge.core.text_templating import render_subject
 
 __all__ = ["render_subject"]

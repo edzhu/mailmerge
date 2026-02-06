@@ -5,8 +5,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from app.core.models import RowData, RowResult, RunSummary
-from app.core.reporting import write_results_csv
+from mailmerge.core.models import RowData, RowResult, RunSummary
+from mailmerge.core.reporting import write_results_csv
 
 
 def _build_summary() -> RunSummary:

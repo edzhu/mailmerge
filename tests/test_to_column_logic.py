@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.core.models import ColumnInfo, RowData, SheetInfo
-from app.ui.to_column_logic import choose_to_columns
+from mailmerge.core.models import ColumnInfo, RowData, SheetInfo
+from mailmerge.ui.to_column_logic import choose_to_columns
 
 _WARNING_NO_EMAIL = "No column strongly resembles email addresses."
 

@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from app.core.models import ColumnInfo, FieldInfo, RowData, SheetInfo, TemplateInfo
-from app.core.run_controller import ProgressEvent, RunConfig, RunController
+from mailmerge.core.models import ColumnInfo, FieldInfo, RowData, SheetInfo, TemplateInfo
+from mailmerge.core.run_controller import ProgressEvent, RunConfig, RunController
 
 
 class StubGraphClient:

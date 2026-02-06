@@ -22,19 +22,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.core.errors import ExcelValidationError, MailMergeError
-from app.core.excel_loader import load_matching_sheet
-from app.core.logging_setup import AuditWriter, configure_logging, create_run_directory
-from app.core.models import RowData, SheetInfo, TemplateInfo
-from app.core.run_controller import ProgressEvent, RunConfig, RunController, RunSummary
-from app.core.template_analyzer import analyze_template
-from app.ui.run_logic import (
+from mailmerge.core.errors import ExcelValidationError, MailMergeError
+from mailmerge.core.excel_loader import load_matching_sheet
+from mailmerge.core.logging_setup import AuditWriter, configure_logging, create_run_directory
+from mailmerge.core.models import RowData, SheetInfo, TemplateInfo
+from mailmerge.core.run_controller import ProgressEvent, RunConfig, RunController, RunSummary
+from mailmerge.core.template_analyzer import analyze_template
+from mailmerge.ui.run_logic import (
     build_run_config_from_inputs,
     is_from_email_valid,
     run_controller_with_cancel,
 )
-from app.ui.to_column_logic import choose_to_columns
-from app.ui.preview_dialog import PreviewDialog
+from mailmerge.ui.to_column_logic import choose_to_columns
+from mailmerge.ui.preview_dialog import PreviewDialog
 
 _DEFAULT_SUBJECT_TEMPLATE = "薪酬单 {年份}年{月份}月 - {姓名}"
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.core.run_controller import (
+from mailmerge.core.run_controller import (
     GraphClientProtocol,
     ProgressEvent,
     RunConfig,

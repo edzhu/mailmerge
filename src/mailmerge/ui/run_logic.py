@@ -6,8 +6,8 @@ from collections.abc import Callable
 from pathlib import Path
 import threading
 
-from app.core import validation
-from app.core.run_controller import ProgressEvent, RunConfig, RunController, RunSummary
+from mailmerge.core import validation
+from mailmerge.core.run_controller import ProgressEvent, RunConfig, RunController, RunSummary
 
 
 def is_from_email_valid(value: str) -> bool:

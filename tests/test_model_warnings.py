@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.core.models import SheetInfo, TemplateInfo
+from mailmerge.core.models import SheetInfo, TemplateInfo
 
 
 def test_template_info_warnings_default_is_empty_list() -> None:

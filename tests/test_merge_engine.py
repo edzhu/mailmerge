@@ -8,8 +8,8 @@ import zipfile
 
 import pytest
 
-from app.core.merge_engine import format_value, merge_docx_bytes
-from app.core.models import FieldInfo, RowData, TemplateInfo
+from mailmerge.core.merge_engine import format_value, merge_docx_bytes
+from mailmerge.core.models import FieldInfo, RowData, TemplateInfo
 
 _WORD_NAMESPACE = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

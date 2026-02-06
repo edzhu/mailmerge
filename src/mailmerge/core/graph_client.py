@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 import requests
 
-from app.core.errors import GraphClientError, OptionalDependencyError
+from mailmerge.core.errors import GraphClientError, OptionalDependencyError
 
 _DEFAULT_SCOPE = "https://graph.microsoft.com/.default"
 _DEFAULT_GRAPH_BASE_URL = "https://graph.microsoft.com"

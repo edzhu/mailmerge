@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
-from app.core.canonicalize import canonicalize
-from app.core.merge_engine import format_value
-from app.core.models import RowData
+from mailmerge.core.canonicalize import canonicalize
+from mailmerge.core.merge_engine import format_value
+from mailmerge.core.models import RowData
 
 _TOKEN_PATTERN = re.compile(r"\{([^{}]+)\}")
 

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.core.email_heuristics import detect_email_columns
-from app.core.models import ColumnInfo, RowData, SheetInfo
+from mailmerge.core.email_heuristics import detect_email_columns
+from mailmerge.core.models import ColumnInfo, RowData, SheetInfo
 
 
 def _build_sheet() -> SheetInfo:

@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.core.models import RowData, RowResult, TemplateInfo
-from app.core.run_controller import RunConfig, RunController
-from app.ui.preview_logic import apply_preview_result_to_viewer
+from mailmerge.core.models import RowData, RowResult, TemplateInfo
+from mailmerge.core.run_controller import RunConfig, RunController
+from mailmerge.ui.preview_logic import apply_preview_result_to_viewer
 
 
 class StubMerger:
@@ -80,7 +80,7 @@ def test_preview_row_uses_dry_run_and_render_subject(monkeypatch: Any) -> None:
         render_calls.append((template, row))
         return "Preview Subject"
 
-    monkeypatch.setattr("app.core.run_controller.render_subject", fake_render_subject)
+    monkeypatch.setattr("mailmerge.core.run_controller.render_subject", fake_render_subject)
 
     config = _build_config()
     row = _build_row()

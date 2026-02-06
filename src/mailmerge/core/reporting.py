@@ -8,10 +8,10 @@ from datetime import date, datetime
 import math
 from pathlib import Path
 
-from app.core.canonicalize import canonicalize
-from app.core.errors import MailMergeError
-from app.core.models import CellValue, RowData, RowResult, RunSummary
-from app.core.validation import is_valid_email
+from mailmerge.core.canonicalize import canonicalize
+from mailmerge.core.errors import MailMergeError
+from mailmerge.core.models import CellValue, RowData, RowResult, RunSummary
+from mailmerge.core.validation import is_valid_email
 
 _DEFAULT_RESULTS_FILENAME = "results.csv"
 _IDENTIFIER_LABELS = ("序号", "姓名")

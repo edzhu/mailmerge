@@ -7,7 +7,7 @@ import io
 import zipfile
 from xml.sax.saxutils import escape as xml_escape
 
-from app.core.html_renderer import docx_bytes_to_html
+from mailmerge.core.html_renderer import docx_bytes_to_html
 
 _WORD_NAMESPACE = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

@@ -5,7 +5,7 @@ import logging
 import sys
 from typing import Sequence
 
-from app.core.errors import OptionalDependencyError
+from mailmerge.core.errors import OptionalDependencyError
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def run_gui() -> int:
             "PySide6 is required to launch the GUI."
         ) from exc
 
-    from app.ui.main_window import MainWindow
+    from mailmerge.ui.main_window import MainWindow
 
     app = QApplication(sys.argv)
     window = MainWindow()

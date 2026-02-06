@@ -9,8 +9,8 @@ from typing import Any
 import pytest
 import requests
 
-from app.core.errors import GraphClientError
-from app.core.graph_client import GraphClient
+from mailmerge.core.errors import GraphClientError
+from mailmerge.core.graph_client import GraphClient
 
 
 class DummyMsalApp:

@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from app.core.errors import ExcelValidationError
-from app.core.excel_loader import load_matching_sheet
-from app.core.models import FieldInfo, TemplateInfo
+from mailmerge.core.errors import ExcelValidationError
+from mailmerge.core.excel_loader import load_matching_sheet
+from mailmerge.core.models import FieldInfo, TemplateInfo
 
 openpyxl = pytest.importorskip("openpyxl")
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.canonicalize import canonicalize
+from mailmerge.core.canonicalize import canonicalize
 
 
 @pytest.mark.parametrize(
