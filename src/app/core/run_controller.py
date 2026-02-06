@@ -360,6 +360,8 @@ def _process_row(
 
     rendered_subject: Optional[str] = None
     rendered_body: Optional[str] = None
+    graph_request_id: Optional[str] = None
+    graph_client_request_id: Optional[str] = None
 
     try:
         merged_bytes = merger(template_bytes, template_info, row)
@@ -368,22 +370,36 @@ def _process_row(
         if not config.dry_run:
             if graph_client is None:
                 raise ConfigurationError("Graph client is not configured.")
-            graph_client.send_mail(
+            response_metadata = graph_client.send_mail(
                 config.from_email,
                 recipient,
                 rendered_subject,
                 rendered_body,
                 config.save_to_sent,
             )
+            graph_request_id, graph_client_request_id = _extract_graph_request_ids(
+                response_metadata
+            )
         result = RowResult(
             row=row,
             success=True,
             rendered_subject=rendered_subject,
             rendered_body=rendered_body,
+            graph_request_id=graph_request_id,
+            graph_client_request_id=graph_client_request_id,
         )
         return _RowOutcome(recipient=recipient, status="success", result=result)
     except MailMergeError as exc:
-        return _failure_outcome(row, recipient, rendered_subject, rendered_body, exc)
+        request_id, client_request_id = _extract_graph_request_ids_from_error(exc)
+        return _failure_outcome(
+            row,
+            recipient,
+            rendered_subject,
+            rendered_body,
+            exc,
+            graph_request_id=request_id,
+            graph_client_request_id=client_request_id,
+        )
     except Exception as exc:  # pragma: no cover - defensive guardrail
         error = MailMergeError(
             f"Unexpected error while processing row {row.row_index}."
@@ -407,6 +423,8 @@ def _failure_outcome(
     rendered_subject: Optional[str],
     rendered_body: Optional[str],
     error: Exception,
+    graph_request_id: Optional[str] = None,
+    graph_client_request_id: Optional[str] = None,
 ) -> _RowOutcome:
     result = RowResult(
         row=row,
@@ -414,6 +432,8 @@ def _failure_outcome(
         rendered_subject=rendered_subject,
         rendered_body=rendered_body,
         error=error,
+        graph_request_id=graph_request_id,
+        graph_client_request_id=graph_client_request_id,
     )
     return _RowOutcome(recipient=recipient, status="failure", result=result)
 
@@ -463,6 +483,13 @@ def _write_audit_event(
         "status": outcome.status,
         "error": str(outcome.result.error) if outcome.result.error else None,
     }
+    graph_request_id, graph_client_request_id = _extract_graph_request_ids_from_result(
+        outcome.result
+    )
+    if graph_request_id is not None:
+        event["graph_request_id"] = graph_request_id
+    if graph_client_request_id is not None:
+        event["graph_client_request_id"] = graph_client_request_id
     try:
         if hasattr(audit_writer, "write_row_event"):
             audit_writer.write_row_event(event)
@@ -494,6 +521,53 @@ def _is_cancelled(cancel_token: Optional[object]) -> bool:
             except Exception:
                 return False
     return False
+
+
+def _extract_graph_request_ids(
+    metadata: Mapping[str, Any] | None,
+) -> tuple[str | None, str | None]:
+    if not metadata:
+        return None, None
+    request_id = _normalize_request_id(
+        metadata.get("request_id") or metadata.get("request-id")
+    )
+    client_request_id = _normalize_request_id(
+        metadata.get("client_request_id") or metadata.get("client-request-id")
+    )
+    return request_id, client_request_id
+
+
+def _extract_graph_request_ids_from_error(
+    error: Exception,
+) -> tuple[str | None, str | None]:
+    request_id = _normalize_request_id(
+        getattr(error, "graph_request_id", None) or getattr(error, "request_id", None)
+    )
+    client_request_id = _normalize_request_id(
+        getattr(error, "graph_client_request_id", None)
+        or getattr(error, "client_request_id", None)
+    )
+    return request_id, client_request_id
+
+
+def _extract_graph_request_ids_from_result(
+    result: RowResult,
+) -> tuple[str | None, str | None]:
+    request_id = _normalize_request_id(getattr(result, "graph_request_id", None))
+    client_request_id = _normalize_request_id(
+        getattr(result, "graph_client_request_id", None)
+    )
+    return request_id, client_request_id
+
+
+def _normalize_request_id(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+        return value or None
+    text = str(value).strip()
+    return text or None
 
 
 __all__ = [

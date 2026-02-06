@@ -84,6 +84,8 @@ class RowResult:
     rendered_subject: Optional[str] = None
     rendered_body: Optional[str] = None
     error: Optional[Exception] = None
+    graph_request_id: Optional[str] = None
+    graph_client_request_id: Optional[str] = None
 
 
 @dataclass

@@ -28,6 +28,7 @@ _EMAIL_LABELS = (
     "收件邮箱",
 )
 _SUBJECT_FIELDS = ("rendered_subject", "subject")
+_REQUEST_ID_FIELDS = ("graph_request_id", "graph_client_request_id")
 
 
 def write_results_csv(run_dir: Path, summary: RunSummary) -> Path:
@@ -35,7 +36,8 @@ def write_results_csv(run_dir: Path, summary: RunSummary) -> Path:
     run_path = _normalize_run_path(run_dir)
     results = _extract_results(summary)
     include_subject = _supports_subject(results)
-    headers = _build_headers(include_subject)
+    include_request_ids = _supports_request_ids(results)
+    headers = _build_headers(include_subject, include_request_ids)
 
     try:
         run_path.mkdir(parents=True, exist_ok=True)
@@ -50,7 +52,9 @@ def write_results_csv(run_dir: Path, summary: RunSummary) -> Path:
             writer = csv.writer(handle, quoting=csv.QUOTE_MINIMAL)
             writer.writerow(headers)
             for index, result in enumerate(results, start=1):
-                writer.writerow(_build_row(result, index, include_subject))
+                writer.writerow(
+                    _build_row(result, index, include_subject, include_request_ids)
+                )
     except OSError as exc:
         raise MailMergeError(f"Unable to write results CSV: {csv_path}") from exc
 
@@ -82,13 +86,25 @@ def _supports_subject(results: Sequence[RowResult]) -> bool:
     return _has_subject_fields(RowResult)
 
 
+def _supports_request_ids(results: Sequence[RowResult]) -> bool:
+    if any(_has_request_id_fields(result) for result in results):
+        return True
+    return _has_request_id_fields(RowResult)
+
+
 def _has_subject_fields(obj: object) -> bool:
     if isinstance(obj, Mapping):
         return any(field in obj for field in _SUBJECT_FIELDS)
     return any(hasattr(obj, field) for field in _SUBJECT_FIELDS)
 
 
-def _build_headers(include_subject: bool) -> list[str]:
+def _has_request_id_fields(obj: object) -> bool:
+    if isinstance(obj, Mapping):
+        return any(field in obj for field in _REQUEST_ID_FIELDS)
+    return any(hasattr(obj, field) for field in _REQUEST_ID_FIELDS)
+
+
+def _build_headers(include_subject: bool, include_request_ids: bool) -> list[str]:
     headers = [
         "row_index",
         "to_email",
@@ -99,10 +115,17 @@ def _build_headers(include_subject: bool) -> list[str]:
     ]
     if include_subject:
         headers.append("subject")
+    if include_request_ids:
+        headers.extend(["graph_request_id", "graph_client_request_id"])
     return headers
 
 
-def _build_row(result: RowResult, default_index: int, include_subject: bool) -> list[str]:
+def _build_row(
+    result: RowResult,
+    default_index: int,
+    include_subject: bool,
+    include_request_ids: bool,
+) -> list[str]:
     row = _get_attr(result, "row")
     values_by_key = _get_values_by_key(row)
     row_index_value = _get_attr(row, "row_index")
@@ -122,6 +145,10 @@ def _build_row(result: RowResult, default_index: int, include_subject: bool) -> 
     ]
     if include_subject:
         record.append(_resolve_subject(result))
+    if include_request_ids:
+        record.extend(
+            [_resolve_graph_request_id(result), _resolve_graph_client_request_id(result)]
+        )
     return record
 
 
@@ -167,6 +194,20 @@ def _resolve_subject(result: RowResult) -> str:
     value = _get_attr(result, "rendered_subject")
     if value is None:
         value = _get_attr(result, "subject")
+    return _stringify_value(value)
+
+
+def _resolve_graph_request_id(result: RowResult) -> str:
+    value = _get_attr(result, "graph_request_id")
+    if value is None:
+        value = _get_attr(result, "request_id")
+    return _stringify_value(value)
+
+
+def _resolve_graph_client_request_id(result: RowResult) -> str:
+    value = _get_attr(result, "graph_client_request_id")
+    if value is None:
+        value = _get_attr(result, "client_request_id")
     return _stringify_value(value)
 
 
