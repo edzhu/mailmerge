@@ -28,6 +28,7 @@ class TemplateInfo:
 
     template_name: str
     fields: Sequence[FieldInfo] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     subject_template: Optional[str] = None
     body_template: Optional[str] = None
 
@@ -54,6 +55,7 @@ class SheetInfo:
 
     name: str
     columns: Sequence[ColumnInfo] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     header_row_index: int = 1
     row_count: Optional[int] = None
 
