@@ -7,9 +7,21 @@ name = "mailmerge"
 version = "0.1.0"
 description = "Minimal UI app scaffold for macOS and Windows executables"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<4.0"
 license = { text = "MIT" }
+authors = [{ name = "Mailmerge contributors" }]
 keywords = ["ui", "tkinter", "pyinstaller"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+    "License :: OSI Approved :: MIT License",
+]
 dependencies = [
     "lxml>=4.9.0",
     "openpyxl>=3.1.0",
@@ -17,6 +29,11 @@ dependencies = [
     "msal>=1.25.0",
     "requests>=2.31.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/edzhu/mailmerge"
+Source = "https://github.com/edzhu/mailmerge"
+Issues = "https://github.com/edzhu/mailmerge/issues"
 
 [project.optional-dependencies]
 gui = ["PySide6>=6.5.0"]
